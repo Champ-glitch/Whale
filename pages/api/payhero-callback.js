@@ -8,9 +8,10 @@ export default async function handler(req, res) {
   const body = req.body;
   console.log("PayHero callback:", JSON.stringify(body));
 
+  const response = body?.response || {};
+
   const reference =
-    body?.external_reference || body?.reference || body?.response?.ExternalReference;
-  const status = body?.status || body?.response?.ResultCode;
+    response.ExternalReference || body?.external_reference || body?.reference;
 
   const chatIdMatch = typeof reference === "string" ? reference.match(/^WHALE-(-?\d+)-/) : null;
 
@@ -20,7 +21,7 @@ export default async function handler(req, res) {
   }
 
   const chatId = chatIdMatch[1];
-  const success = status === 0 || status === "0" || body?.status === "Success";
+  const success = response.ResultCode === 0 || response.Status === "Success";
 
   if (success) {
     await sendTelegramMessage(chatId, `✅ Payment received! Reference: \`${reference}\``);
