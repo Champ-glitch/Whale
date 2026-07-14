@@ -1,0 +1,57 @@
+// pages/api/telegram-webhook.js
+// Telegram sends every message to this endpoint (set via setWebhook).
+
+const { initiateSTKPush } = require("../../lib/payhero");
+const { sendTelegramMessage } = require("../../lib/telegram");
+
+module.exports = async function handler(req, res) {
+  if (req.method !== "POST") {
+    return res.status(200).send("OK"); // Telegram sometimes pings with GET
+  }
+
+  const message = req.body?.message;
+  if (!message || !message.text) {
+    return res.status(200).json({ ok: true });
+  }
+
+  const chatId = message.chat.id;
+  const text = message.text.trim();
+
+  // Match: /pay 500 0712345678
+  const match = text.match(/^\/pay\s+(\d+)\s+(\+?\d{9,12})$/i);
+
+  if (!match) {
+    if (text.startsWith("/pay")) {
+      await sendTelegramMessage(
+        chatId,
+        "Format: `/pay <amount> <phone>`\nExample: `/pay 500 0712345678`"
+      );
+    } else if (text === "/start") {
+      await sendTelegramMessage(
+        chatId,
+        "👋 *WHALE_SYS Pay Bot*\nSend `/pay <amount> <phone>` to trigger an STK push.\nExample: `/pay 500 0712345678`"
+      );
+    }
+    return res.status(200).json({ ok: true });
+  }
+
+  const [, amount, phoneNumber] = match;
+
+  // Encode the requester's chat_id INTO the reference so the callback
+  // endpoint knows who to notify — no database needed for the MVP.
+  const reference = `WHALE-${chatId}-${Date.now()}`;
+
+  try {
+    await sendTelegramMessage(chatId, `⏳ Sending STK push of *KES ${amount}* to *${phoneNumber}*...`);
+
+    await initiateSTKPush({ amount, phoneNumber, reference });
+
+    // Note: we do NOT say "paid" here — this only confirms the prompt was sent.
+    await sendTelegramMessage(chatId, `📲 Prompt sent. Waiting for client to enter M-Pesa PIN...`);
+  } catch (err) {
+    console.error("STK push error:", err);
+    await sendTelegramMessage(chatId, `❌ Failed to send prompt: ${err.message}`);
+  }
+
+  return res.status(200).json({ ok: true });
+};
