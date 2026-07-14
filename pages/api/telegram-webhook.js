@@ -14,6 +14,12 @@ export default async function handler(req, res) {
   const chatId = message.chat.id;
   const text = message.text.trim();
 
+  const allowedChatId = process.env.OWNER_CHAT_ID;
+  if (allowedChatId && String(chatId) !== String(allowedChatId)) {
+    console.warn("Ignored message from unauthorized chat:", chatId);
+    return res.status(200).json({ ok: true });
+  }
+
   const match = text.match(/^\/pay\s+(\d+)\s+(\+?\d{9,12})$/i);
 
   if (!match) {
