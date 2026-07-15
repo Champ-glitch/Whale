@@ -27,8 +27,6 @@ export default async function handler(req, res) {
   const success = response.ResultCode === 0 || response.Status === "Success";
   const amount = response.Amount;
 
-  // If this payment came from an invoice link, update its status so the
-  // payment page (which is polling) can pick it up immediately.
   if (invoiceCode) {
     await updateInvoiceStatus(invoiceCode, success ? "success" : "failed");
   }

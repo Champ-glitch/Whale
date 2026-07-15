@@ -28,7 +28,7 @@ function isValidKenyanPhone(phone) {
 export default function PayPage({ invoice, code }) {
   const [phone, setPhone] = useState("");
   const [phoneError, setPhoneError] = useState("");
-  const [stage, setStage] = useState("idle"); // idle | sending | verifying | success | failed | timeout
+  const [stage, setStage] = useState("idle");
   const [errorMsg, setErrorMsg] = useState("");
   const pollRef = useRef(null);
   const pollCountRef = useRef(0);
@@ -69,11 +69,8 @@ export default function PayPage({ invoice, code }) {
           clearInterval(pollRef.current);
           setStage("failed");
         }
-      } catch (e) {
-        // transient network hiccup, keep polling
-      }
+      } catch (e) {}
       if (pollCountRef.current > 30) {
-        // ~90 seconds of polling with no result
         clearInterval(pollRef.current);
         setStage("timeout");
       }

@@ -1,6 +1,3 @@
-// pages/api/invoice-status.js
-// Polled by the payment page after submission to detect success/failure.
-
 import { getInvoice } from "../../lib/kv.js";
 
 export default async function handler(req, res) {
