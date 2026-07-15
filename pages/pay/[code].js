@@ -67,7 +67,7 @@ function roundRect(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
-async function downloadReceiptImage(invoice, code) {
+async function generateReceiptCanvas(invoice, code) {
   const W = 680, H = 920;
   const canvas = document.createElement("canvas");
   canvas.width = W;
@@ -189,10 +189,34 @@ async function downloadReceiptImage(invoice, code) {
   ctx.font = "11px sans-serif";
   ctx.fillText("This receipt is auto-generated and does not require a signature.", W / 2, H - 64);
 
+  return canvas;
+}
+
+async function downloadReceiptImage(invoice, code) {
+  const canvas = await generateReceiptCanvas(invoice, code);
   const link = document.createElement("a");
   link.download = `WHALE_SYS-receipt-${code}.png`;
   link.href = canvas.toDataURL("image/png");
   link.click();
+}
+
+async function sendReceiptToWhatsApp(invoice, code) {
+  const canvas = await generateReceiptCanvas(invoice, code);
+  const text = `WHALE_SYS payment receipt — KES ${invoice.amount} for ${invoice.description} (Invoice ${code})`;
+
+  canvas.toBlob(async (blob) => {
+    const file = new File([blob], `WHALE_SYS-receipt-${code}.png`, { type: "image/png" });
+
+    if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file], text });
+        return;
+      } catch (e) {
+        // fall through to link fallback if user cancels or share fails
+      }
+    }
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
+  }, "image/png");
 }
 
 function downloadICS(invoice, code) {
@@ -221,10 +245,14 @@ export default function PayPage({ invoice, code }) {
   const [stage, setStage] = useState("idle");
   const [errorMsg, setErrorMsg] = useState("");
   const [ready, setReady] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
   const pollRef = useRef(null);
   const pollCountRef = useRef(0);
+  const elapsedRef = useRef(null);
+  const phoneInputRef = useRef(null);
 
   const countedAmount = useCountUp(invoice?.amount, ready && (stage === "idle" || stage === "sending"));
+  const isPhoneValid = isValidKenyanPhone("0" + phone.replace(/\s/g, ""));
 
   useEffect(() => {
     const t = setTimeout(() => setReady(true), 200);
@@ -232,7 +260,23 @@ export default function PayPage({ invoice, code }) {
   }, []);
 
   useEffect(() => {
-    return () => clearInterval(pollRef.current);
+    if (ready && phoneInputRef.current) {
+      phoneInputRef.current.focus();
+    }
+  }, [ready]);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("whale_last_phone");
+      if (saved) setPhone(saved);
+    } catch (e) {}
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      clearInterval(pollRef.current);
+      clearInterval(elapsedRef.current);
+    };
   }, []);
 
   if (!invoice) {
@@ -261,6 +305,8 @@ export default function PayPage({ invoice, code }) {
 
   function startPolling() {
     pollCountRef.current = 0;
+    setElapsed(0);
+    elapsedRef.current = setInterval(() => setElapsed((s) => s + 1), 1000);
     pollRef.current = setInterval(async () => {
       pollCountRef.current += 1;
       try {
@@ -268,14 +314,17 @@ export default function PayPage({ invoice, code }) {
         const data = await res.json();
         if (data.status === "success") {
           clearInterval(pollRef.current);
+          clearInterval(elapsedRef.current);
           setStage("success");
         } else if (data.status === "failed") {
           clearInterval(pollRef.current);
+          clearInterval(elapsedRef.current);
           setStage("failed");
         }
       } catch (e) {}
       if (pollCountRef.current > 30) {
         clearInterval(pollRef.current);
+        clearInterval(elapsedRef.current);
         setStage("timeout");
       }
     }, 3000);
@@ -293,6 +342,10 @@ export default function PayPage({ invoice, code }) {
     setPhoneError("");
     setStage("sending");
     setErrorMsg("");
+
+    try {
+      localStorage.setItem("whale_last_phone", phone);
+    } catch (e) {}
 
     try {
       const res = await fetch("/api/invoice-pay", {
@@ -376,6 +429,10 @@ export default function PayPage({ invoice, code }) {
                   Download receipt
                 </button>
                 <span className="dot">•</span>
+                <button className="linkBtn" onClick={() => sendReceiptToWhatsApp(invoice, code)}>
+                  Send to WhatsApp
+                </button>
+                <span className="dot">•</span>
                 <button className="linkBtn" onClick={() => downloadICS(invoice, code)}>
                   Add to calendar
                 </button>
@@ -388,6 +445,11 @@ export default function PayPage({ invoice, code }) {
                 {stage === "sending" ? "Sending request" : "Verifying payment"}
               </p>
               <p className="stateSub">Check your phone and enter your M-Pesa PIN.</p>
+              {stage === "verifying" && (
+                <p className="expectationNote">
+                  This usually takes under 30 seconds {elapsed > 0 && `· ${elapsed}s elapsed`}
+                </p>
+              )}
             </div>
           ) : stage === "failed" ? (
             <div className="centerState">
@@ -417,18 +479,23 @@ export default function PayPage({ invoice, code }) {
 
               <div className="divider" />
 
+              <p className="recipientLine">You're paying <strong>WHALE_SYS</strong></p>
+
               <div className="amountSection">
                 <p className="amountValue">
                   KES {countedAmount.toLocaleString()}
                 </p>
+                <p className="noFees">No additional fees</p>
               </div>
 
               <p className="paymentFor">Payment for: {invoice.description}</p>
+              <p className="refLine">Ref: {code}</p>
 
               <form onSubmit={handleSubmit} className={shake ? "shake" : ""}>
                 <div className="phoneGroup">
                   <span className="prefix">+254</span>
                   <input
+                    ref={phoneInputRef}
                     id="phone"
                     type="tel"
                     inputMode="numeric"
@@ -445,7 +512,7 @@ export default function PayPage({ invoice, code }) {
                   <p className="expiryNote"><Countdown createdAt={invoice.createdAt} /></p>
                 )}
 
-                <button type="submit" className="payNowBtn">
+                <button type="submit" className="payNowBtn" disabled={!isPhoneValid}>
                   PAY NOW <span className="arrow">→</span>
                 </button>
 
@@ -457,6 +524,10 @@ export default function PayPage({ invoice, code }) {
                   <span className="tDot">•</span>
                   <button type="button" className="helpInline" onClick={() => window.open(`https://wa.me/${SUPPORT_WHATSAPP}?text=Hi%2C%20I%20need%20help%20with%20invoice%20${code}`, "_blank")}>
                     Need help?
+                  </button>
+                  <span className="tDot">•</span>
+                  <button type="button" className="helpInline" onClick={() => window.open(TIKTOK_URL, "_blank")}>
+                    About
                   </button>
                 </div>
               </form>
@@ -480,7 +551,12 @@ export default function PayPage({ invoice, code }) {
         }
         .verifiedSub { color: #cbd5e1; font-size: 14px; font-weight: 400; margin: 6px 0 0; letter-spacing: 0.3px; }
         .divider { width: 80%; height: 1px; background: rgba(255,255,255,0.15); margin: 26px auto; }
-        .paymentFor { color: #94a3b8; font-size: 13px; text-align: center; margin: 0 0 26px; line-height: 1.6; }
+        .recipientLine { color: #94a3b8; font-size: 13px; text-align: center; margin: 0 0 16px; }
+        .recipientLine strong { color: #e2e8f0; }
+        .noFees { color: #4ade80; font-size: 11.5px; text-align: center; margin: 6px 0 0; }
+        .paymentFor { color: #94a3b8; font-size: 13px; text-align: center; margin: 0 0 4px; line-height: 1.6; }
+        .refLine { color: #475569; font-size: 11px; text-align: center; margin: 0 0 26px; font-family: monospace; }
+        .expectationNote { color: #475569; font-size: 12px; text-align: center; margin: 10px 0 0; }
         .payNowBtn {
           display: block;
           margin: 26px auto 0;
@@ -493,9 +569,10 @@ export default function PayPage({ invoice, code }) {
           font-weight: 700;
           letter-spacing: 1.5px;
           cursor: pointer;
-          transition: background 0.2s, color 0.2s;
+          transition: background 0.2s, color 0.2s, opacity 0.2s;
         }
-        .payNowBtn:hover { background: #ffffff; color: #0A1628; }
+        .payNowBtn:hover:not(:disabled) { background: #ffffff; color: #0A1628; }
+        .payNowBtn:disabled { opacity: 0.35; cursor: not-allowed; }
         .payNowBtn .arrow { display: inline-block; margin-left: 4px; }
         .expiryNote { text-align: center; margin: 14px 0 0; }
         .footerTrust { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 36px; color: #64748b; font-size: 10.5px; flex-wrap: wrap; }
@@ -703,20 +780,29 @@ function Shell({ children, title, description }) {
             radial-gradient(circle at 50% -10%, rgba(0,206,209,0.06), transparent 45%),
             linear-gradient(160deg, #060b14 0%, #0a1420 55%, #060b14 100%);
           display: flex;
-          align-items: center;
           justify-content: center;
-          padding: 24px;
+          padding: 0;
         }
         .card {
-          max-width: 400px;
           width: 100%;
+          max-width: 480px;
+          min-height: 100vh;
           background: #0d1826;
-          border-radius: 20px;
-          padding: 28px 26px;
-          border: 1px solid rgba(255,255,255,0.06);
-          box-shadow: 0 20px 50px -15px rgba(0,0,0,0.6);
+          border-radius: 0;
+          padding: 40px 26px 32px;
+          border: none;
+          box-shadow: none;
           position: relative;
           overflow: hidden;
+        }
+        @media (min-width: 480px) {
+          .card {
+            min-height: auto;
+            margin: 40px 0;
+            border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.06);
+            box-shadow: 0 20px 50px -15px rgba(0,0,0,0.6);
+          }
         }
         .geoAccent {
           position: absolute;
