@@ -333,16 +333,17 @@ export default function PayPage({ invoice, code }) {
         <Skeleton />
       ) : (
         <>
-          <div className="topRow">
-            <div className="brandMark">
-              <img src={WHALE_IMG} alt="" width="22" height="22" />
-              <span>WHALE_SYS</span>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M9 12l2 2 4-4" stroke="#00CED1" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/><circle cx="12" cy="12" r="10" stroke="#00CED1" strokeWidth="1.5"/></svg>
+          {stage !== "idle" && (
+            <div className="topRow">
+              <div className="brandMark">
+                <img src={WHALE_IMG} alt="" width="22" height="22" />
+                <span>WHALE_SYS</span>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M9 12l2 2 4-4" stroke="#00CED1" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/><circle cx="12" cy="12" r="10" stroke="#00CED1" strokeWidth="1.5"/></svg>
+              </div>
             </div>
-            {invoice.createdAt && stage === "idle" && <Countdown createdAt={invoice.createdAt} />}
-          </div>
+          )}
 
-          {stage !== "success" && stage !== "failed" && stage !== "timeout" && (
+          {stage !== "idle" && stage !== "success" && stage !== "failed" && stage !== "timeout" && (
             <StepBar step={step} />
           )}
 
@@ -404,21 +405,27 @@ export default function PayPage({ invoice, code }) {
             </div>
           ) : (
             <>
+              <div className="brandHeader">
+                <p className="brandName">
+                  whale_sys
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" style={{ marginLeft: 8 }}>
+                    <path d="M9 12l2 2 4-4" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </p>
+                <p className="verifiedSub">Merchant Verified</p>
+              </div>
+
+              <div className="divider" />
+
               <div className="amountSection">
-                <p className="amountLabel">You're paying</p>
                 <p className="amountValue">
-                  <span className="currency">KES</span>
-                  {countedAmount.toLocaleString()}
+                  KES {countedAmount.toLocaleString()}
                 </p>
               </div>
 
-              <div className="lineItem">
-                <span className="lineLabel">Description</span>
-                <span className="lineValue">{invoice.description}</span>
-              </div>
+              <p className="paymentFor">Payment for: {invoice.description}</p>
 
               <form onSubmit={handleSubmit} className={shake ? "shake" : ""}>
-                <label className="fieldLabel" htmlFor="phone">Phone number</label>
                 <div className="phoneGroup">
                   <span className="prefix">+254</span>
                   <input
@@ -434,21 +441,24 @@ export default function PayPage({ invoice, code }) {
                 </div>
                 {phoneError && <p className="fieldError">{phoneError}</p>}
 
-                <button type="submit" className="primaryBtn">
-                  Pay now
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                {invoice.createdAt && (
+                  <p className="expiryNote"><Countdown createdAt={invoice.createdAt} /></p>
+                )}
+
+                <button type="submit" className="payNowBtn">
+                  PAY NOW <span className="arrow">→</span>
                 </button>
 
-                <div className="trustLine">
+                <div className="footerTrust">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6l8-4z" stroke="#64748b" strokeWidth="1.5"/></svg>
-                  Bank-level encryption
+                  256-bit SSL
                   <span className="tDot">•</span>
-                  PayHero Verified
+                  PCI DSS
+                  <span className="tDot">•</span>
+                  <button type="button" className="helpInline" onClick={() => window.open(`https://wa.me/${SUPPORT_WHATSAPP}?text=Hi%2C%20I%20need%20help%20with%20invoice%20${code}`, "_blank")}>
+                    Need help?
+                  </button>
                 </div>
-
-                <button type="button" className="helpLink" onClick={() => window.open(`https://wa.me/${SUPPORT_WHATSAPP}?text=Hi%2C%20I%20need%20help%20with%20invoice%20${code}`, "_blank")}>
-                  Need help? Chat with us
-                </button>
               </form>
             </>
           )}
@@ -456,12 +466,46 @@ export default function PayPage({ invoice, code }) {
       )}
 
       <style jsx>{`
+        .brandHeader { text-align: center; padding-top: 4px; }
+        .brandName {
+          font-family: 'Playfair Display', serif;
+          font-style: italic;
+          font-weight: 700;
+          font-size: 30px;
+          color: #ffffff;
+          margin: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .verifiedSub { color: #cbd5e1; font-size: 14px; font-weight: 400; margin: 6px 0 0; letter-spacing: 0.3px; }
+        .divider { width: 80%; height: 1px; background: rgba(255,255,255,0.15); margin: 26px auto; }
+        .paymentFor { color: #94a3b8; font-size: 13px; text-align: center; margin: 0 0 26px; line-height: 1.6; }
+        .payNowBtn {
+          display: block;
+          margin: 26px auto 0;
+          padding: 13px 30px;
+          background: transparent;
+          border: 2px solid #ffffff;
+          border-radius: 8px;
+          color: #ffffff;
+          font-size: 13px;
+          font-weight: 700;
+          letter-spacing: 1.5px;
+          cursor: pointer;
+          transition: background 0.2s, color 0.2s;
+        }
+        .payNowBtn:hover { background: #ffffff; color: #0A1628; }
+        .payNowBtn .arrow { display: inline-block; margin-left: 4px; }
+        .expiryNote { text-align: center; margin: 14px 0 0; }
+        .footerTrust { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 36px; color: #64748b; font-size: 10.5px; flex-wrap: wrap; }
+        .helpInline { background: none; border: none; color: #64748b; font-size: 10.5px; cursor: pointer; padding: 0; text-decoration: underline; }
         .topRow { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
         .brandMark { display: flex; align-items: center; gap: 6px; color: #e2e8f0; font-weight: 700; font-size: 13px; letter-spacing: 0.4px; }
         .stepBar { display: flex; gap: 6px; margin-bottom: 28px; }
-        .amountSection { text-align: center; margin-bottom: 22px; }
+        .amountSection { text-align: center; margin-bottom: 4px; }
         .amountLabel { color: #64748b; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; margin: 0 0 6px; }
-        .amountValue { color: #f8fafc; font-size: 40px; font-weight: 800; margin: 0; letter-spacing: -0.5px; font-variant-numeric: tabular-nums; }
+        .amountValue { color: #f8fafc; font-size: 32px; font-weight: 800; margin: 0; letter-spacing: -0.3px; font-variant-numeric: tabular-nums; }
         .currency { font-size: 18px; font-weight: 700; color: #00CED1; margin-right: 8px; vertical-align: middle; }
         .lineItem { display: flex; justify-content: space-between; align-items: baseline; padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.06); margin-bottom: 24px; }
         .lineLabel { color: #64748b; font-size: 13px; }
@@ -638,12 +682,15 @@ function Shell({ children, title, description }) {
         <title>{title ? `${title} | WHALE_SYS` : "WHALE_SYS Pay"}</title>
         <link rel="icon" href={FAVICON} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@1,700&display=swap" rel="stylesheet" />
         <meta property="og:title" content={title || "WHALE_SYS Pay"} />
         <meta property="og:description" content={description || "Fast, secure M-Pesa checkout by WHALE_SYS."} />
       </Head>
       <div className="page">
-        <div className="card">{children}</div>
+        <div className="card">
+          <div className="geoAccent" aria-hidden="true" />
+          {children}
+        </div>
       </div>
       <style jsx global>{`
         * { font-family: 'Inter', system-ui, sans-serif; box-sizing: border-box; }
@@ -668,6 +715,19 @@ function Shell({ children, title, description }) {
           padding: 28px 26px;
           border: 1px solid rgba(255,255,255,0.06);
           box-shadow: 0 20px 50px -15px rgba(0,0,0,0.6);
+          position: relative;
+          overflow: hidden;
+        }
+        .geoAccent {
+          position: absolute;
+          top: 0;
+          right: 0;
+          width: 140px;
+          height: 140px;
+          background: linear-gradient(135deg, #3B82F6, #06B6D4);
+          opacity: 0.85;
+          clip-path: polygon(100% 0, 100% 100%, 20% 0);
+          pointer-events: none;
         }
       `}</style>
     </>
