@@ -23,26 +23,26 @@ export async function getServerSideProps({ params }) {
 const SUPPORT_WHATSAPP = "254798016597";
 const TIKTOK_URL = "https://www.tiktok.com/@Whale_sys";
 const EXPIRY_HOURS = 48;
-const WHALE_FAVICON =
-  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%90%8B%3C/text%3E%3C/svg%3E";
+const WHALE_IMG = "https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/svg/1f40b.svg";
+const FAVICON = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%90%8B%3C/text%3E%3C/svg%3E";
 
 function isValidKenyanPhone(phone) {
   return /^(0|\+?254)(7|1)\d{8}$/.test(phone.replace(/\s/g, ""));
 }
 
 function formatPhoneDisplay(raw) {
-  const digits = raw.replace(/\D/g, "").slice(0, 10);
+  const digits = raw.replace(/\D/g, "").slice(0, 9);
   const parts = [];
-  if (digits.length > 0) parts.push(digits.slice(0, 4));
-  if (digits.length > 4) parts.push(digits.slice(4, 7));
-  if (digits.length > 7) parts.push(digits.slice(7, 10));
+  if (digits.length > 0) parts.push(digits.slice(0, 3));
+  if (digits.length > 3) parts.push(digits.slice(3, 6));
+  if (digits.length > 6) parts.push(digits.slice(6, 9));
   return parts.join(" ");
 }
 
-function useCountUp(target, durationMs = 700) {
+function useCountUp(target, active, durationMs = 650) {
   const [value, setValue] = useState(0);
   useEffect(() => {
-    if (!target) return;
+    if (!target || !active) return;
     let start = null;
     let frame;
     function step(ts) {
@@ -53,7 +53,7 @@ function useCountUp(target, durationMs = 700) {
     }
     frame = requestAnimationFrame(step);
     return () => cancelAnimationFrame(frame);
-  }, [target, durationMs]);
+  }, [target, active, durationMs]);
   return value;
 }
 
@@ -68,117 +68,126 @@ function roundRect(ctx, x, y, w, h, r) {
 }
 
 async function downloadReceiptImage(invoice, code) {
-  const W = 640, H = 900;
+  const W = 680, H = 920;
   const canvas = document.createElement("canvas");
   canvas.width = W;
   canvas.height = H;
   const ctx = canvas.getContext("2d");
 
-  // Outer background
-  const bgGrad = ctx.createLinearGradient(0, 0, 0, H);
-  bgGrad.addColorStop(0, "#152a45");
-  bgGrad.addColorStop(1, "#060e1a");
-  ctx.fillStyle = bgGrad;
+  // Clean light document background — reads as an official receipt, not a UI screenshot
+  ctx.fillStyle = "#f8fafc";
   ctx.fillRect(0, 0, W, H);
 
-  // Soft color blobs for texture
-  ctx.globalAlpha = 0.18;
-  const blob = (x, y, r, color) => {
-    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
-    g.addColorStop(0, color);
-    g.addColorStop(1, "transparent");
-    ctx.fillStyle = g;
-    ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
-    ctx.fill();
-  };
-  blob(60, 60, 180, "#9D00FF");
-  blob(W - 60, H - 60, 160, "#FF1493");
-  ctx.globalAlpha = 1;
+  // Top brand accent bar
+  const barGrad = ctx.createLinearGradient(0, 0, W, 0);
+  barGrad.addColorStop(0, "#0A1628");
+  barGrad.addColorStop(0.5, "#00CED1");
+  barGrad.addColorStop(1, "#FFD700");
+  ctx.fillStyle = barGrad;
+  ctx.fillRect(0, 0, W, 8);
 
-  // Card
-  const pad = 40;
-  roundRect(ctx, pad, pad, W - pad * 2, H - pad * 2, 28);
-  ctx.fillStyle = "rgba(15,28,48,0.9)";
+  const pad = 56;
+
+  // Header row: logo mark + wordmark left, "RECEIPT" label right
+  ctx.beginPath();
+  ctx.arc(pad + 26, 90, 26, 0, Math.PI * 2);
+  ctx.fillStyle = "#0A1628";
   ctx.fill();
-  ctx.strokeStyle = "rgba(0,206,209,0.35)";
-  ctx.lineWidth = 2;
-  ctx.stroke();
-
-  ctx.textAlign = "center";
-
-  // Brand
-  ctx.fillStyle = "#FFD700";
-  ctx.font = "bold 26px sans-serif";
-  ctx.fillText("WHALE_SYS", W / 2, 130);
-
-  // Whale icon
   try {
     const img = new Image();
     img.crossOrigin = "anonymous";
     await new Promise((resolve, reject) => {
       img.onload = resolve;
       img.onerror = reject;
-      img.src = "https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/svg/1f40b.svg";
+      img.src = WHALE_IMG;
     });
-    ctx.drawImage(img, W / 2 - 45, 155, 90, 90);
-  } catch (e) {
-    ctx.font = "70px sans-serif";
-    ctx.fillText("🐋", W / 2, 230);
-  }
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(pad + 26, 90, 20, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.drawImage(img, pad + 6, 70, 40, 40);
+    ctx.restore();
+  } catch (e) {}
 
-  // Success badge
-  ctx.fillStyle = "#4ade80";
-  ctx.font = "bold 26px sans-serif";
-  ctx.fillText("✅ Payment Completed", W / 2, 300);
+  ctx.textAlign = "left";
+  ctx.fillStyle = "#0f172a";
+  ctx.font = "bold 22px sans-serif";
+  ctx.fillText("WHALE_SYS", pad + 64, 84);
+  ctx.fillStyle = "#64748b";
+  ctx.font = "12px sans-serif";
+  ctx.fillText("Self-Taught. Self-Made.", pad + 64, 102);
+
+  ctx.textAlign = "right";
+  ctx.fillStyle = "#94a3b8";
+  ctx.font = "bold 13px sans-serif";
+  ctx.fillText("PAYMENT RECEIPT", W - pad, 84);
+  ctx.fillStyle = "#00CED1";
+  ctx.font = "bold 13px sans-serif";
+  ctx.fillText(code, W - pad, 102);
+
+  // Divider
+  ctx.strokeStyle = "#e2e8f0";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(pad, 140);
+  ctx.lineTo(W - pad, 140);
+  ctx.stroke();
+
+  // Status ring + check
+  ctx.beginPath();
+  ctx.arc(W / 2, 210, 36, 0, Math.PI * 2);
+  ctx.strokeStyle = "#00CED1";
+  ctx.lineWidth = 3;
+  ctx.stroke();
+  ctx.fillStyle = "#0f172a";
+  ctx.font = "bold 34px sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText("✓", W / 2, 222);
+
+  ctx.fillStyle = "#0f172a";
+  ctx.font = "bold 20px sans-serif";
+  ctx.fillText("Payment Successful", W / 2, 280);
 
   // Amount
-  ctx.fillStyle = "#ffffff";
-  ctx.font = "bold 52px sans-serif";
-  ctx.fillText(`KES ${invoice.amount.toLocaleString()}`, W / 2, 375);
-
-  // Description
-  ctx.fillStyle = "#94a3b8";
-  ctx.font = "20px sans-serif";
-  ctx.fillText(invoice.description, W / 2, 415);
-
-  // Divider (dashed, receipt-style)
-  ctx.setLineDash([6, 8]);
-  ctx.strokeStyle = "rgba(0,206,209,0.4)";
-  ctx.beginPath();
-  ctx.moveTo(pad + 40, 460);
-  ctx.lineTo(W - pad - 40, 460);
-  ctx.stroke();
-  ctx.setLineDash([]);
-
-  // Details block
-  ctx.textAlign = "left";
-  const detailX = pad + 50;
-  let y = 510;
-  const row = (label, value) => {
-    ctx.fillStyle = "#64748b";
-    ctx.font = "16px sans-serif";
-    ctx.fillText(label, detailX, y);
-    ctx.textAlign = "right";
-    ctx.fillStyle = "#e2e8f0";
-    ctx.font = "bold 16px sans-serif";
-    ctx.fillText(value, W - pad - 50, y);
-    ctx.textAlign = "left";
-    y += 42;
-  };
-  row("Invoice", code);
-  row("Date", new Date().toLocaleDateString());
-  row("Time", new Date().toLocaleTimeString());
-
-  // Footer
-  ctx.textAlign = "center";
-  ctx.fillStyle = "#FFD700";
-  ctx.font = "italic 17px sans-serif";
-  ctx.fillText("Thank you for trusting WHALE_SYS 🐋", W / 2, H - pad - 40);
-
-  ctx.fillStyle = "#475569";
+  ctx.fillStyle = "#64748b";
   ctx.font = "13px sans-serif";
-  ctx.fillText("Self-Taught. Self-Made.", W / 2, H - pad - 14);
+  ctx.fillText("AMOUNT PAID", W / 2, 330);
+  ctx.fillStyle = "#0f172a";
+  ctx.font = "bold 54px sans-serif";
+  ctx.fillText(`KES ${invoice.amount.toLocaleString()}`, W / 2, 390);
+
+  // Details table
+  ctx.textAlign = "left";
+  let y = 470;
+  const rowH = 46;
+  const detailRow = (label, value) => {
+    ctx.fillStyle = "#94a3b8";
+    ctx.font = "13px sans-serif";
+    ctx.fillText(label.toUpperCase(), pad, y);
+    ctx.fillStyle = "#0f172a";
+    ctx.font = "bold 16px sans-serif";
+    ctx.fillText(value, pad, y + 22);
+    y += rowH + 20;
+  };
+  detailRow("Description", invoice.description);
+  detailRow("Invoice Number", code);
+  detailRow("Date & Time", new Date().toLocaleString());
+  detailRow("Status", "Completed");
+
+  // Footer divider
+  ctx.strokeStyle = "#e2e8f0";
+  ctx.beginPath();
+  ctx.moveTo(pad, H - 130);
+  ctx.lineTo(W - pad, H - 130);
+  ctx.stroke();
+
+  ctx.textAlign = "center";
+  ctx.fillStyle = "#334155";
+  ctx.font = "italic 15px sans-serif";
+  ctx.fillText("Thank you for trusting WHALE_SYS 🐋", W / 2, H - 90);
+  ctx.fillStyle = "#94a3b8";
+  ctx.font = "11px sans-serif";
+  ctx.fillText("This receipt is auto-generated and does not require a signature.", W / 2, H - 64);
 
   const link = document.createElement("a");
   link.download = `WHALE_SYS-receipt-${code}.png`;
@@ -215,10 +224,10 @@ export default function PayPage({ invoice, code }) {
   const pollRef = useRef(null);
   const pollCountRef = useRef(0);
 
-  const countedAmount = useCountUp(stage === "idle" || stage === "sending" ? invoice?.amount : 0);
+  const countedAmount = useCountUp(invoice?.amount, ready && (stage === "idle" || stage === "sending"));
 
   useEffect(() => {
-    const t = setTimeout(() => setReady(true), 250);
+    const t = setTimeout(() => setReady(true), 200);
     return () => clearTimeout(t);
   }, []);
 
@@ -229,8 +238,11 @@ export default function PayPage({ invoice, code }) {
   if (!invoice) {
     return (
       <Shell title="Invalid Link">
-        <StatusIcon type="error" />
-        <p className="statusText error">This payment link is invalid or has expired.</p>
+        <div className="centerState">
+          <StatusRing type="error" />
+          <p className="stateTitle">Link invalid or expired</p>
+          <p className="stateSub">This payment link is no longer active.</p>
+        </div>
       </Shell>
     );
   }
@@ -238,8 +250,11 @@ export default function PayPage({ invoice, code }) {
   if (invoice.status === "success" && stage === "idle") {
     return (
       <Shell title="Already Paid">
-        <StatusIcon type="success" />
-        <p className="statusText success">This invoice has already been paid. ✅</p>
+        <div className="centerState">
+          <StatusRing type="success" />
+          <p className="stateTitle">Already paid</p>
+          <p className="stateSub">This invoice has already been settled.</p>
+        </div>
       </Shell>
     );
   }
@@ -268,11 +283,11 @@ export default function PayPage({ invoice, code }) {
 
   async function handleSubmit(e) {
     e.preventDefault();
-    const cleanPhone = phone.replace(/\s/g, "");
+    const cleanPhone = "0" + phone.replace(/\s/g, "");
     if (!isValidKenyanPhone(cleanPhone)) {
-      setPhoneError("Enter a valid Kenyan number, e.g. 0712345678");
+      setPhoneError("Enter a valid number, e.g. 712 345 678");
       setShake(true);
-      setTimeout(() => setShake(false), 500);
+      setTimeout(() => setShake(false), 450);
       return;
     }
     setPhoneError("");
@@ -287,7 +302,6 @@ export default function PayPage({ invoice, code }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Something went wrong");
-
       setStage("verifying");
       startPolling();
     } catch (err) {
@@ -303,7 +317,7 @@ export default function PayPage({ invoice, code }) {
   }
 
   function shareExperience() {
-    const text = `Just paid via WHALE_SYS Pay — fast, simple M-Pesa checkout. Check them out!`;
+    const text = `Just paid via WHALE_SYS Pay — fast, secure M-Pesa checkout.`;
     if (navigator.share) {
       navigator.share({ text, url: TIKTOK_URL }).catch(() => {});
     } else {
@@ -311,380 +325,294 @@ export default function PayPage({ invoice, code }) {
     }
   }
 
+  const step = stage === "idle" ? 1 : stage === "sending" || stage === "verifying" ? 2 : stage === "success" ? 3 : 1;
+
   return (
-    <Shell
-      title={invoice.status === "success" ? "Payment Complete" : `Pay KES ${invoice.amount}`}
-      description={invoice.description}
-    >
+    <Shell title={invoice.status === "success" ? "Payment Complete" : `Pay KES ${invoice.amount}`} description={invoice.description}>
       {!ready ? (
         <Skeleton />
-      ) : stage === "success" ? (
-        <>
-          <Confetti />
-          <StatusIcon type="success" />
-          <p className="statusText success">Payment completed! 🎉</p>
-          <p className="subtle">KES {invoice.amount} received successfully.</p>
-          <div className="receiptCard">
-            <p className="thankYou">Thank you for trusting WHALE_SYS 🐋</p>
-            <p className="receiptLine">Invoice: <span>{code}</span></p>
-            <p className="receiptLine">{invoice.description}</p>
-          </div>
-          <div className="actionsRow">
-            <button className="smallBtn" onClick={() => downloadReceiptImage(invoice, code)}>
-              📄 Save Receipt
-            </button>
-            <button className="smallBtn" onClick={() => downloadICS(invoice, code)}>
-              📅 Add to Calendar
-            </button>
-          </div>
-          <button className="shareBtn" onClick={shareExperience}>
-            ✨ Share your experience
-          </button>
-        </>
-      ) : stage === "verifying" || stage === "sending" ? (
-        <>
-          <Spinner />
-          <p className="statusText">
-            {stage === "sending" ? "Sending prompt..." : "Verifying payment..."}
-          </p>
-          <p className="subtle">Check your phone and enter your M-Pesa PIN.</p>
-        </>
-      ) : stage === "failed" ? (
-        <>
-          <StatusIcon type="error" />
-          <p className="statusText error">
-            {errorMsg || "Payment was not completed (cancelled or failed)."}
-          </p>
-          <button className="payBtn" onClick={retry}>Try Again</button>
-        </>
-      ) : stage === "timeout" ? (
-        <>
-          <StatusIcon type="warn" />
-          <p className="statusText">Taking longer than expected.</p>
-          <p className="subtle">If you already paid, it may still confirm shortly. Otherwise, try again or contact support.</p>
-          <button className="payBtn" onClick={retry}>Try Again</button>
-        </>
       ) : (
         <>
-          <div className="amountBlock fadeIn1">
-            <p className="label">Amount Due</p>
-            <p className="amount">KES {countedAmount.toLocaleString()}</p>
+          <div className="topRow">
+            <div className="brandMark">
+              <img src={WHALE_IMG} alt="" width="22" height="22" />
+              <span>WHALE_SYS</span>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M9 12l2 2 4-4" stroke="#00CED1" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/><circle cx="12" cy="12" r="10" stroke="#00CED1" strokeWidth="1.5"/></svg>
+            </div>
+            {invoice.createdAt && stage === "idle" && <Countdown createdAt={invoice.createdAt} />}
           </div>
 
-          <div className="whaleWrap fadeIn2">
-            <Sparkles />
-            <WhaleSVG />
-          </div>
+          {stage !== "success" && stage !== "failed" && stage !== "timeout" && (
+            <StepBar step={step} />
+          )}
 
-          <form onSubmit={handleSubmit} className={`fadeIn3 ${shake ? "shake" : ""}`}>
-            <label className="label" htmlFor="phone">Phone Number</label>
-            <input
-              id="phone"
-              type="tel"
-              inputMode="numeric"
-              placeholder="07XX XXX XXX"
-              value={phone}
-              onChange={(e) => setPhone(formatPhoneDisplay(e.target.value))}
-              className="phoneInput"
-              aria-invalid={!!phoneError}
-              aria-describedby="phone-error"
-            />
-            {phoneError && <p id="phone-error" className="fieldError">{phoneError}</p>}
+          {stage === "success" ? (
+            <div className="successBlock">
+              <StatusRing type="success" pulse />
+              <p className="stateTitle">Payment Successful</p>
+              <p className="amountBig">KES {invoice.amount.toLocaleString()}</p>
 
-            <div className="descCard">
-              <p className="descLabel">Description</p>
-              <p className="descText">{invoice.description}</p>
+              <div className="detailsTable">
+                <div className="detailRow">
+                  <span>Description</span>
+                  <span>{invoice.description}</span>
+                </div>
+                <div className="detailRow">
+                  <span>Invoice</span>
+                  <span className="mono">{code}</span>
+                </div>
+                <div className="detailRow">
+                  <span>Status</span>
+                  <span className="statusPill">Completed</span>
+                </div>
+              </div>
+
+              <button className="primaryBtn" onClick={shareExperience}>
+                Share your experience
+              </button>
+              <div className="linkRow">
+                <button className="linkBtn" onClick={() => downloadReceiptImage(invoice, code)}>
+                  Download receipt
+                </button>
+                <span className="dot">•</span>
+                <button className="linkBtn" onClick={() => downloadICS(invoice, code)}>
+                  Add to calendar
+                </button>
+              </div>
             </div>
-
-            <button type="submit" className="payBtn">Pay Now</button>
-
-            <div className="trustRow">
-              <span className="trustBadge">🔒 Secured by M-Pesa</span>
-              <span className="trustBadge">✓ Verified Merchant</span>
+          ) : stage === "verifying" || stage === "sending" ? (
+            <div className="centerState">
+              <Spinner />
+              <p className="stateTitle">
+                {stage === "sending" ? "Sending request" : "Verifying payment"}
+              </p>
+              <p className="stateSub">Check your phone and enter your M-Pesa PIN.</p>
             </div>
+          ) : stage === "failed" ? (
+            <div className="centerState">
+              <StatusRing type="error" />
+              <p className="stateTitle">Payment not completed</p>
+              <p className="stateSub">{errorMsg || "The transaction was cancelled or failed."}</p>
+              <button className="primaryBtn" onClick={retry}>Try again</button>
+            </div>
+          ) : stage === "timeout" ? (
+            <div className="centerState">
+              <StatusRing type="warn" />
+              <p className="stateTitle">Still processing</p>
+              <p className="stateSub">If you already paid, it may confirm shortly. Otherwise, try again.</p>
+              <button className="primaryBtn" onClick={retry}>Try again</button>
+            </div>
+          ) : (
+            <>
+              <div className="amountSection">
+                <p className="amountLabel">You're paying</p>
+                <p className="amountValue">
+                  <span className="currency">KES</span>
+                  {countedAmount.toLocaleString()}
+                </p>
+              </div>
 
-            {invoice.createdAt && <Countdown createdAt={invoice.createdAt} />}
+              <div className="lineItem">
+                <span className="lineLabel">Description</span>
+                <span className="lineValue">{invoice.description}</span>
+              </div>
 
-            <a
-              href={`https://wa.me/${SUPPORT_WHATSAPP}?text=Hi%2C%20I%20need%20help%20with%20invoice%20${code}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="helpBtn"
-            >
-              💬 Need Help?
-            </a>
-          </form>
+              <form onSubmit={handleSubmit} className={shake ? "shake" : ""}>
+                <label className="fieldLabel" htmlFor="phone">Phone number</label>
+                <div className="phoneGroup">
+                  <span className="prefix">+254</span>
+                  <input
+                    id="phone"
+                    type="tel"
+                    inputMode="numeric"
+                    placeholder="712 345 678"
+                    value={phone}
+                    onChange={(e) => setPhone(formatPhoneDisplay(e.target.value))}
+                    className="phoneInput"
+                    aria-invalid={!!phoneError}
+                  />
+                </div>
+                {phoneError && <p className="fieldError">{phoneError}</p>}
+
+                <button type="submit" className="primaryBtn">
+                  Pay now
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                </button>
+
+                <div className="trustLine">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6l8-4z" stroke="#64748b" strokeWidth="1.5"/></svg>
+                  Bank-level encryption
+                  <span className="tDot">•</span>
+                  PayHero Verified
+                </div>
+
+                <button type="button" className="helpLink" onClick={() => window.open(`https://wa.me/${SUPPORT_WHATSAPP}?text=Hi%2C%20I%20need%20help%20with%20invoice%20${code}`, "_blank")}>
+                  Need help? Chat with us
+                </button>
+              </form>
+            </>
+          )}
         </>
       )}
 
       <style jsx>{`
-        .amountBlock { text-align: center; margin-bottom: 8px; }
-        .label { color: #e2e8f0; font-weight: 600; font-size: 14px; margin: 0 0 6px; letter-spacing: 0.5px; text-transform: uppercase; }
-        .amount {
-          color: #ffffff; font-size: 34px; font-weight: 800; margin: 0;
-          background: linear-gradient(90deg, #fff, #FFD700, #fff);
-          background-size: 200% auto;
-          -webkit-background-clip: text;
-          background-clip: text;
-          animation: shimmerText 3s linear infinite;
-        }
-        @keyframes shimmerText {
-          to { background-position: 200% center; }
-        }
-        .whaleWrap { display: flex; justify-content: center; margin: 20px 0 28px; position: relative; height: 110px; align-items: center; }
-        .phoneInput {
+        .topRow { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .brandMark { display: flex; align-items: center; gap: 6px; color: #e2e8f0; font-weight: 700; font-size: 13px; letter-spacing: 0.4px; }
+        .stepBar { display: flex; gap: 6px; margin-bottom: 28px; }
+        .amountSection { text-align: center; margin-bottom: 22px; }
+        .amountLabel { color: #64748b; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; margin: 0 0 6px; }
+        .amountValue { color: #f8fafc; font-size: 40px; font-weight: 800; margin: 0; letter-spacing: -0.5px; font-variant-numeric: tabular-nums; }
+        .currency { font-size: 18px; font-weight: 700; color: #00CED1; margin-right: 8px; vertical-align: middle; }
+        .lineItem { display: flex; justify-content: space-between; align-items: baseline; padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.06); margin-bottom: 24px; }
+        .lineLabel { color: #64748b; font-size: 13px; }
+        .lineValue { color: #e2e8f0; font-size: 13px; font-weight: 600; text-align: right; max-width: 60%; }
+        .fieldLabel { display: block; color: #94a3b8; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+        .phoneGroup { display: flex; border: 1px solid #1e293b; border-radius: 10px; overflow: hidden; background: #0c1524; transition: border-color 0.15s, box-shadow 0.15s; }
+        .phoneGroup:focus-within { border-color: #00CED1; box-shadow: 0 0 0 3px rgba(0,206,209,0.15); }
+        .prefix { padding: 13px 12px; color: #64748b; font-size: 15px; font-weight: 600; background: rgba(255,255,255,0.02); border-right: 1px solid #1e293b; }
+        .phoneInput { flex: 1; border: none; background: transparent; color: #f1f5f9; font-size: 15px; padding: 13px 14px; outline: none; box-sizing: border-box; }
+        .fieldError { color: #f87171; font-size: 12px; margin: 8px 0 0; }
+        .primaryBtn {
           width: 100%;
-          padding: 14px 16px;
+          margin-top: 20px;
+          padding: 15px;
           border-radius: 10px;
-          border: 1px solid #2c3a52;
-          background: #0f1c30;
-          color: #fff;
-          font-size: 16px;
-          box-sizing: border-box;
-          margin-bottom: 6px;
-          transition: box-shadow 0.2s, border-color 0.2s;
-        }
-        .phoneInput:focus {
-          outline: none;
-          border-color: #00CED1;
-          box-shadow: 0 0 0 3px rgba(0,206,209,0.25);
-        }
-        .fieldError { color: #f87171; font-size: 13px; margin: 0 0 12px; }
-        .descCard {
-          background: rgba(255,255,255,0.05);
-          border: 1px solid rgba(255,215,0,0.25);
-          border-radius: 10px;
-          padding: 14px 16px;
-          margin: 18px 0 22px;
-        }
-        .descLabel { color: #FFD700; font-size: 12px; font-weight: 700; text-transform: uppercase; margin: 0 0 4px; letter-spacing: 0.5px; }
-        .descText { color: #e2e8f0; font-size: 15px; margin: 0; line-height: 1.4; }
-        .payBtn {
-          width: 100%;
-          padding: 16px;
-          border-radius: 12px;
           border: none;
           background: #00CED1;
           color: #06202a;
-          font-size: 17px;
-          font-weight: 800;
-          cursor: pointer;
-          transition: transform 0.15s, box-shadow 0.15s;
-          position: relative;
-          overflow: hidden;
-        }
-        .payBtn:hover { transform: scale(1.03); box-shadow: 0 0 24px rgba(0,206,209,0.5); }
-        .payBtn:active { transform: scale(0.97); }
-        .trustRow { display: flex; gap: 8px; justify-content: center; margin-top: 14px; flex-wrap: wrap; }
-        .trustBadge {
-          font-size: 11px;
-          color: #94a3b8;
-          background: rgba(255,255,255,0.05);
-          padding: 5px 10px;
-          border-radius: 20px;
-          border: 1px solid rgba(255,255,255,0.08);
-        }
-        .helpBtn {
-          display: block;
-          text-align: center;
-          margin-top: 14px;
-          padding: 12px;
-          border-radius: 12px;
-          border: 1px solid #00CED1;
-          color: #00CED1;
-          text-decoration: none;
-          font-weight: 600;
-          font-size: 14px;
-        }
-        .statusText { color: #fff; font-size: 18px; text-align: center; margin: 12px 0 4px; }
-        .statusText.success { color: #4ade80; }
-        .statusText.error { color: #f87171; }
-        .subtle { color: #94a3b8; font-size: 14px; text-align: center; margin: 0 0 20px; }
-        .receiptCard {
-          background: rgba(255,255,255,0.04);
-          border: 1px solid rgba(0,206,209,0.3);
-          border-radius: 12px;
-          padding: 16px 18px;
-          margin-top: 14px;
-        }
-        .thankYou { color: #FFD700; font-weight: 700; font-size: 15px; text-align: center; margin: 0 0 10px; }
-        .receiptLine { color: #cbd5e1; font-size: 13px; text-align: center; margin: 4px 0; }
-        .receiptLine span { color: #00CED1; font-weight: 600; }
-        .actionsRow { display: flex; gap: 10px; margin-top: 16px; }
-        .smallBtn {
-          flex: 1;
-          padding: 10px;
-          border-radius: 10px;
-          border: 1px solid rgba(0,206,209,0.4);
-          background: transparent;
-          color: #00CED1;
-          font-size: 12px;
-          font-weight: 600;
-          cursor: pointer;
-        }
-        .shareBtn {
-          width: 100%;
-          margin-top: 14px;
-          padding: 12px;
-          border-radius: 10px;
-          border: none;
-          background: linear-gradient(90deg, #FF1493, #9D00FF);
-          color: #fff;
+          font-size: 15px;
           font-weight: 700;
-          font-size: 13px;
           cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          transition: filter 0.15s, transform 0.1s;
         }
-        .fadeIn1 { animation: fadeIn 0.5s ease both; }
-        .fadeIn2 { animation: fadeIn 0.5s ease 0.15s both; }
-        .fadeIn3 { animation: fadeIn 0.5s ease 0.3s both; }
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(8px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
+        .primaryBtn:hover { filter: brightness(1.08); }
+        .primaryBtn:active { transform: scale(0.98); }
+        .trustLine { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 16px; color: #64748b; font-size: 11.5px; }
+        .tDot { color: #334155; }
+        .helpLink { display: block; width: 100%; text-align: center; margin-top: 18px; background: none; border: none; color: #00CED1; font-size: 13px; font-weight: 600; cursor: pointer; padding: 4px; }
+        .helpLink:hover { text-decoration: underline; }
+        .centerState { text-align: center; padding: 12px 0 4px; }
+        .stateTitle { color: #f8fafc; font-size: 18px; font-weight: 700; margin: 14px 0 6px; }
+        .stateSub { color: #64748b; font-size: 13.5px; margin: 0 0 18px; }
+        .successBlock { text-align: center; }
+        .amountBig { color: #f8fafc; font-size: 32px; font-weight: 800; margin: 4px 0 22px; }
+        .detailsTable { text-align: left; border-top: 1px solid rgba(255,255,255,0.06); margin-bottom: 20px; }
+        .detailRow { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.06); font-size: 13px; }
+        .detailRow span:first-child { color: #64748b; }
+        .detailRow span:last-child { color: #e2e8f0; font-weight: 600; }
+        .mono { font-family: monospace; color: #00CED1 !important; }
+        .statusPill { background: rgba(74,222,128,0.12); color: #4ade80 !important; padding: 2px 10px; border-radius: 20px; font-size: 11px; }
+        .linkRow { display: flex; justify-content: center; gap: 10px; margin-top: 14px; }
+        .linkBtn { background: none; border: none; color: #64748b; font-size: 12.5px; font-weight: 600; cursor: pointer; text-decoration: underline; }
+        .dot { color: #334155; }
         .shake { animation: shakeAnim 0.4s; }
         @keyframes shakeAnim {
           0%, 100% { transform: translateX(0); }
-          20% { transform: translateX(-8px); }
-          40% { transform: translateX(8px); }
-          60% { transform: translateX(-6px); }
-          80% { transform: translateX(6px); }
+          20% { transform: translateX(-6px); }
+          40% { transform: translateX(6px); }
+          60% { transform: translateX(-4px); }
+          80% { transform: translateX(4px); }
         }
       `}</style>
     </Shell>
   );
 }
 
-function Countdown({ createdAt }) {
-  const [timeLeft, setTimeLeft] = useState("");
-
-  useEffect(() => {
-    function update() {
-      const expiry = createdAt + EXPIRY_HOURS * 60 * 60 * 1000;
-      const diff = expiry - Date.now();
-      if (diff <= 0) {
-        setTimeLeft("expired");
-        return;
-      }
-      const h = Math.floor(diff / (1000 * 60 * 60));
-      const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-      setTimeLeft(`${h}h ${m}m`);
-    }
-    update();
-    const t = setInterval(update, 60000);
-    return () => clearInterval(t);
-  }, [createdAt]);
-
-  if (!timeLeft) return null;
-
+function StepBar({ step }) {
   return (
-    <p className="countdown">
-      {timeLeft === "expired" ? "⏰ This link has expired" : `⏰ Link expires in ${timeLeft}`}
-      <style jsx>{`
-        .countdown { text-align: center; color: #64748b; font-size: 11px; margin: 10px 0 0; }
-      `}</style>
-    </p>
-  );
-}
-
-function Sparkles() {
-  const stars = Array.from({ length: 8 });
-  return (
-    <div className="sparklesWrap" aria-hidden="true">
-      {stars.map((_, i) => (
-        <span
-          key={i}
-          className="star"
+    <div className="stepBar">
+      {[1, 2, 3].map((s) => (
+        <div
+          key={s}
           style={{
-            left: `${10 + Math.random() * 80}%`,
-            top: `${Math.random() * 100}%`,
-            animationDelay: `${Math.random() * 2}s`,
-            fontSize: `${8 + Math.random() * 8}px`,
+            flex: 1,
+            height: 3,
+            borderRadius: 2,
+            background: s <= step ? "#00CED1" : "rgba(255,255,255,0.08)",
+            transition: "background 0.3s",
           }}
-        >
-          ✦
-        </span>
+        />
       ))}
       <style jsx>{`
-        .sparklesWrap { position: absolute; inset: 0; pointer-events: none; }
-        .star {
-          position: absolute;
-          color: #FFD700;
-          opacity: 0;
-          animation: twinkle 2.4s ease-in-out infinite;
-        }
-        @keyframes twinkle {
-          0%, 100% { opacity: 0; transform: scale(0.5); }
-          50% { opacity: 1; transform: scale(1); }
-        }
+        .stepBar { display: flex; gap: 6px; margin-bottom: 28px; }
       `}</style>
     </div>
   );
 }
 
-function WhaleSVG() {
+function Countdown({ createdAt }) {
+  const [timeLeft, setTimeLeft] = useState("");
+  useEffect(() => {
+    function update() {
+      const expiry = createdAt + EXPIRY_HOURS * 60 * 60 * 1000;
+      const diff = expiry - Date.now();
+      if (diff <= 0) { setTimeLeft("Expired"); return; }
+      const h = Math.floor(diff / (1000 * 60 * 60));
+      const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      setTimeLeft(`${h}h ${m}m left`);
+    }
+    update();
+    const t = setInterval(update, 60000);
+    return () => clearInterval(t);
+  }, [createdAt]);
+  if (!timeLeft) return null;
   return (
-    <img
-      src="https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/svg/1f40b.svg"
-      alt="Whale"
-      width="110"
-      height="110"
-      className="whaleImg"
-      style={{
-        filter: "drop-shadow(0 0 18px #00CED1) drop-shadow(0 0 10px #FFD700)",
-        animation: "floatWhale 3.5s ease-in-out infinite",
-      }}
-    />
+    <span className="countdown">
+      {timeLeft}
+      <style jsx>{`
+        .countdown { color: #475569; font-size: 11px; font-weight: 500; }
+      `}</style>
+    </span>
+  );
+}
+
+function StatusRing({ type, pulse }) {
+  const color = type === "success" ? "#00CED1" : type === "warn" ? "#facc15" : "#f87171";
+  const icon = type === "success" ? "✓" : type === "warn" ? "!" : "✕";
+  return (
+    <div className={`ring ${pulse ? "pulse" : ""}`} style={{ borderColor: color, color }}>
+      {icon}
+      <style jsx>{`
+        .ring {
+          width: 64px; height: 64px;
+          border: 2.5px solid;
+          border-radius: 50%;
+          display: flex; align-items: center; justify-content: center;
+          font-size: 26px; font-weight: 700;
+          margin: 0 auto;
+        }
+        .pulse { animation: pulseRing 1.6s ease-out infinite; }
+        @keyframes pulseRing {
+          0% { box-shadow: 0 0 0 0 rgba(0,206,209,0.35); }
+          70% { box-shadow: 0 0 0 14px rgba(0,206,209,0); }
+          100% { box-shadow: 0 0 0 0 rgba(0,206,209,0); }
+        }
+      `}</style>
+    </div>
   );
 }
 
 function Skeleton() {
   return (
     <div className="skeletonWrap">
-      <div className="sk sk-title" />
+      <div className="sk sk-row" />
       <div className="sk sk-amount" />
-      <div className="sk sk-circle" />
+      <div className="sk sk-line" />
       <div className="sk sk-input" />
-      <div className="sk sk-desc" />
       <div className="sk sk-btn" />
       <style jsx>{`
-        .skeletonWrap { display: flex; flex-direction: column; align-items: center; gap: 14px; }
-        .sk { background: linear-gradient(90deg, #1e293b 25%, #2c3a52 37%, #1e293b 63%); background-size: 400% 100%; animation: shimmer 1.4s ease infinite; border-radius: 8px; }
-        .sk-title { width: 100px; height: 12px; }
-        .sk-amount { width: 140px; height: 30px; }
-        .sk-circle { width: 90px; height: 90px; border-radius: 50%; margin: 10px 0; }
-        .sk-input { width: 100%; height: 46px; border-radius: 10px; }
-        .sk-desc { width: 100%; height: 60px; border-radius: 10px; }
-        .sk-btn { width: 100%; height: 50px; border-radius: 12px; }
-        @keyframes shimmer {
-          0% { background-position: 100% 50%; }
-          100% { background-position: 0 50%; }
-        }
-      `}</style>
-    </div>
-  );
-}
-
-function Confetti() {
-  const pieces = Array.from({ length: 18 });
-  const colors = ["#00CED1", "#FFD700", "#FF1493", "#9D00FF", "#00FF7F"];
-  return (
-    <div className="confettiWrap" aria-hidden="true">
-      {pieces.map((_, i) => (
-        <span
-          key={i}
-          className="piece"
-          style={{
-            left: `${Math.random() * 100}%`,
-            background: colors[i % colors.length],
-            animationDelay: `${Math.random() * 0.4}s`,
-            animationDuration: `${1.2 + Math.random() * 0.8}s`,
-          }}
-        />
-      ))}
-      <style jsx>{`
-        .confettiWrap { position: absolute; top: 0; left: 0; right: 0; height: 0; overflow: visible; pointer-events: none; }
-        .piece { position: absolute; top: -10px; width: 7px; height: 12px; opacity: 0.9; animation-name: fall; animation-timing-function: ease-in; animation-fill-mode: forwards; border-radius: 2px; }
-        @keyframes fall { to { transform: translateY(280px) rotate(360deg); opacity: 0; } }
+        .skeletonWrap { display: flex; flex-direction: column; gap: 16px; }
+        .sk { background: linear-gradient(90deg, #0f1c30 25%, #1a2c45 37%, #0f1c30 63%); background-size: 400% 100%; animation: shimmer 1.4s ease infinite; border-radius: 8px; }
+        .sk-row { width: 110px; height: 14px; }
+        .sk-amount { width: 160px; height: 34px; align-self: center; margin: 10px 0; }
+        .sk-line { width: 100%; height: 40px; }
+        .sk-input { width: 100%; height: 48px; border-radius: 10px; }
+        .sk-btn { width: 100%; height: 50px; border-radius: 10px; }
+        @keyframes shimmer { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
       `}</style>
     </div>
   );
@@ -695,17 +623,12 @@ function Spinner() {
     <div className="spinnerWrap">
       <div className="spinner" />
       <style jsx>{`
-        .spinnerWrap { display: flex; justify-content: center; margin: 30px 0 16px; }
-        .spinner { width: 48px; height: 48px; border: 4px solid rgba(0,206,209,0.2); border-top-color: #00CED1; border-radius: 50%; animation: spin 0.9s linear infinite; }
+        .spinnerWrap { display: flex; justify-content: center; margin: 6px 0 14px; }
+        .spinner { width: 40px; height: 40px; border: 3px solid rgba(0,206,209,0.15); border-top-color: #00CED1; border-radius: 50%; animation: spin 0.8s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
       `}</style>
     </div>
   );
-}
-
-function StatusIcon({ type }) {
-  const icon = type === "success" ? "✅" : type === "warn" ? "⏳" : "❌";
-  return <div style={{ fontSize: 56, textAlign: "center", marginBottom: 8 }}>{icon}</div>;
 }
 
 function Shell({ children, title, description }) {
@@ -713,74 +636,39 @@ function Shell({ children, title, description }) {
     <>
       <Head>
         <title>{title ? `${title} | WHALE_SYS` : "WHALE_SYS Pay"}</title>
-        <link rel="icon" href={WHALE_FAVICON} />
+        <link rel="icon" href={FAVICON} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap" rel="stylesheet" />
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
         <meta property="og:title" content={title || "WHALE_SYS Pay"} />
         <meta property="og:description" content={description || "Fast, secure M-Pesa checkout by WHALE_SYS."} />
-        <meta name="twitter:card" content="summary" />
       </Head>
       <div className="page">
-        <div className="blob blob1" />
-        <div className="blob blob2" />
-        <div className="blob blob3" />
-        <div className="card">
-          <div className="brandRow">
-            <span className="brandIcon">🐋</span>
-            <p className="brand">WHALE_SYS</p>
-          </div>
-          {children}
-        </div>
+        <div className="card">{children}</div>
       </div>
       <style jsx global>{`
-        * { font-family: 'Poppins', system-ui, sans-serif; }
+        * { font-family: 'Inter', system-ui, sans-serif; box-sizing: border-box; }
         body { margin: 0; }
-        @keyframes floatWhale {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-10px); }
-        }
       `}</style>
       <style jsx>{`
         .page {
           min-height: 100vh;
-          background: radial-gradient(circle at 50% 0%, #10233b 0%, #0A1628 60%);
+          background:
+            radial-gradient(circle at 50% -10%, rgba(0,206,209,0.06), transparent 45%),
+            linear-gradient(160deg, #060b14 0%, #0a1420 55%, #060b14 100%);
           display: flex;
           align-items: center;
           justify-content: center;
           padding: 24px;
-          position: relative;
-          overflow: hidden;
         }
-        .blob { position: absolute; border-radius: 50%; filter: blur(70px); opacity: 0.35; }
-        .blob1 { width: 260px; height: 260px; background: #9D00FF; top: -60px; left: -60px; }
-        .blob2 { width: 220px; height: 220px; background: #FF1493; bottom: -40px; right: -40px; }
-        .blob3 { width: 200px; height: 200px; background: #00FF7F; bottom: 20%; left: -60px; }
         .card {
           max-width: 400px;
           width: 100%;
-          background: rgba(15, 28, 48, 0.85);
-          backdrop-filter: blur(6px);
+          background: #0d1826;
           border-radius: 20px;
-          padding: 32px 28px;
-          border: 1px solid rgba(255,255,255,0.08);
-          box-shadow: 0 0 0 1px rgba(0,206,209,0.08), 0 20px 60px rgba(0,0,0,0.4);
-          position: relative;
-          z-index: 1;
-          overflow: hidden;
+          padding: 28px 26px;
+          border: 1px solid rgba(255,255,255,0.06);
+          box-shadow: 0 20px 50px -15px rgba(0,0,0,0.6);
         }
-        .card::before {
-          content: "";
-          position: absolute;
-          top: -50%; left: -50%;
-          width: 200%; height: 200%;
-          background: conic-gradient(from 0deg, transparent, rgba(0,206,209,0.08), transparent 30%);
-          animation: rotate 8s linear infinite;
-          pointer-events: none;
-        }
-        @keyframes rotate { to { transform: rotate(360deg); } }
-        .brandRow { display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 22px; }
-        .brandIcon { font-size: 16px; }
-        .brand { color: #FFD700; font-weight: 800; letter-spacing: 2px; font-size: 14px; margin: 0; }
       `}</style>
     </>
   );
