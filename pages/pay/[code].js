@@ -21,6 +21,17 @@ export async function getServerSideProps({ params }) {
 }
 
 const SUPPORT_WHATSAPP = "254798016597";
+const VERIFY_MESSAGES = [
+  "Connecting to M-Pesa...",
+  "Waiting for you to enter your PIN...",
+  "Almost there, hang tight...",
+  "Still confirming with M-Pesa...",
+];
+const TIP_MESSAGES = [
+  "💡 Tip: Keep this page open until you see confirmation.",
+  "💡 Tip: Save your number next time for a faster checkout.",
+  "💡 Tip: You'll get a receipt automatically once confirmed.",
+];
 const TIKTOK_URL = "https://www.tiktok.com/@Whale_sys";
 const EXPIRY_HOURS = 48;
 const WHALE_IMG = "https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/svg/1f40b.svg";
@@ -440,15 +451,43 @@ export default function PayPage({ invoice, code }) {
             </div>
           ) : stage === "verifying" || stage === "sending" ? (
             <div className="centerState">
-              <Spinner />
+              {stage === "sending" ? (
+                <Spinner />
+              ) : (
+                <PulsePhone />
+              )}
+
               <p className="stateTitle">
                 {stage === "sending" ? "Sending request" : "Verifying payment"}
               </p>
               <p className="stateSub">Check your phone and enter your M-Pesa PIN.</p>
+
+              <div className="verifyContext">
+                <p>Paying <strong>KES {invoice.amount.toLocaleString()}</strong> to WHALE_SYS</p>
+                {stage === "verifying" && <p>Prompt sent to +254 {phone}</p>}
+              </div>
+
               {stage === "verifying" && (
-                <p className="expectationNote">
-                  This usually takes under 30 seconds {elapsed > 0 && `· ${elapsed}s elapsed`}
-                </p>
+                <>
+                  <p className="rotatingStatus">{VERIFY_MESSAGES[Math.min(Math.floor(elapsed / 4), VERIFY_MESSAGES.length - 1)]}</p>
+                  <p className="expectationNote">
+                    This usually takes under 30 seconds {elapsed > 0 && `· ${elapsed}s elapsed`}
+                  </p>
+                  <p className="reassureNote">You can safely leave this open — we'll confirm automatically.</p>
+
+                  {elapsed >= 15 && (
+                    <button
+                      type="button"
+                      className="helpInline"
+                      style={{ marginTop: 16 }}
+                      onClick={() => window.open(`https://wa.me/${SUPPORT_WHATSAPP}?text=Hi%2C%20I%20haven%27t%20received%20the%20M-Pesa%20prompt%20for%20invoice%20${code}`, "_blank")}
+                    >
+                      Didn't get the prompt? Get help
+                    </button>
+                  )}
+
+                  <p className="tipLine">{TIP_MESSAGES[Math.floor(elapsed / 8) % TIP_MESSAGES.length]}</p>
+                </>
               )}
             </div>
           ) : stage === "failed" ? (
@@ -590,6 +629,12 @@ export default function PayPage({ invoice, code }) {
         .paymentFor { color: #94a3b8; font-size: 13px; text-align: center; margin: 0 0 4px; line-height: 1.6; }
         .refLine { color: #475569; font-size: 11px; text-align: center; margin: 0 0 26px; font-family: monospace; }
         .expectationNote { color: #475569; font-size: 12px; text-align: center; margin: 10px 0 0; }
+        .verifyContext { margin: 16px 0 4px; }
+        .verifyContext p { color: #94a3b8; font-size: 13px; text-align: center; margin: 4px 0; }
+        .verifyContext strong { color: #e2e8f0; }
+        .rotatingStatus { color: #00CED1; font-size: 13px; font-weight: 600; text-align: center; margin: 14px 0 0; min-height: 18px; }
+        .reassureNote { color: #475569; font-size: 11.5px; text-align: center; margin: 10px 0 0; font-style: italic; }
+        .tipLine { color: #334155; font-size: 11.5px; text-align: center; margin: 22px 0 0; }
         .payNowBtn {
           display: block;
           margin: 26px auto 0;
@@ -710,17 +755,26 @@ function StepBar({ step }) {
       {[1, 2, 3].map((s) => (
         <div
           key={s}
+          className={s === step ? "activeStep" : ""}
           style={{
             flex: 1,
             height: 3,
             borderRadius: 2,
-            background: s <= step ? "#00CED1" : "rgba(255,255,255,0.08)",
+            background: s < step ? "#00CED1" : s === step ? undefined : "rgba(255,255,255,0.08)",
             transition: "background 0.3s",
           }}
         />
       ))}
       <style jsx>{`
         .stepBar { display: flex; gap: 6px; margin-bottom: 28px; }
+        .activeStep {
+          background: linear-gradient(90deg, #00CED1, #0891b2, #00CED1);
+          background-size: 200% 100%;
+          animation: shimmerStep 1.4s linear infinite;
+        }
+        @keyframes shimmerStep {
+          to { background-position: -200% 0; }
+        }
       `}</style>
     </div>
   );
@@ -853,6 +907,32 @@ function Skeleton() {
         .sk-input { width: 100%; height: 48px; border-radius: 10px; }
         .sk-btn { width: 100%; height: 50px; border-radius: 10px; }
         @keyframes shimmer { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
+      `}</style>
+    </div>
+  );
+}
+
+function PulsePhone() {
+  return (
+    <div className="pulsePhoneWrap">
+      <div className="pulseRing r1" />
+      <div className="pulseRing r2" />
+      <div className="phoneIcon">📲</div>
+      <style jsx>{`
+        .pulsePhoneWrap { position: relative; width: 70px; height: 70px; margin: 6px auto 14px; display: flex; align-items: center; justify-content: center; }
+        .phoneIcon { font-size: 30px; z-index: 1; }
+        .pulseRing {
+          position: absolute;
+          inset: 0;
+          border-radius: 50%;
+          border: 2px solid rgba(0,206,209,0.4);
+          animation: pulseOut 2s ease-out infinite;
+        }
+        .r2 { animation-delay: 1s; }
+        @keyframes pulseOut {
+          0% { transform: scale(0.6); opacity: 1; }
+          100% { transform: scale(1.6); opacity: 0; }
+        }
       `}</style>
     </div>
   );
