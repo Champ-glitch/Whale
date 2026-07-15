@@ -257,13 +257,37 @@ export default function PayPage({ invoice, code }) {
   const [errorMsg, setErrorMsg] = useState("");
   const [ready, setReady] = useState(false);
   const [elapsed, setElapsed] = useState(0);
+  const [isOffline, setIsOffline] = useState(false);
+  const [toast, setToast] = useState("");
   const pollRef = useRef(null);
   const pollCountRef = useRef(0);
   const elapsedRef = useRef(null);
   const phoneInputRef = useRef(null);
+  const toastTimeoutRef = useRef(null);
 
   const countedAmount = useCountUp(invoice?.amount, ready && (stage === "idle" || stage === "sending"));
   const isPhoneValid = isValidKenyanPhone("0" + phone.replace(/\s/g, ""));
+
+  function showToast(msg) {
+    setToast(msg);
+    clearTimeout(toastTimeoutRef.current);
+    toastTimeoutRef.current = setTimeout(() => setToast(""), 2000);
+  }
+
+  function copyToClipboard(text, label) {
+    try {
+      navigator.clipboard.writeText(text);
+      showToast(`${label} copied`);
+    } catch (e) {
+      showToast("Couldn't copy");
+    }
+  }
+
+  function vibrate(pattern) {
+    try {
+      if (navigator.vibrate) navigator.vibrate(pattern);
+    } catch (e) {}
+  }
 
   useEffect(() => {
     const t = setTimeout(() => setReady(true), 200);
@@ -284,9 +308,27 @@ export default function PayPage({ invoice, code }) {
   }, []);
 
   useEffect(() => {
+    function goOffline() { setIsOffline(true); }
+    function goOnline() { setIsOffline(false); }
+    window.addEventListener("offline", goOffline);
+    window.addEventListener("online", goOnline);
+    setIsOffline(!navigator.onLine);
+    return () => {
+      window.removeEventListener("offline", goOffline);
+      window.removeEventListener("online", goOnline);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (stage === "success") vibrate([100, 60, 100]);
+    if (stage === "failed") vibrate(200);
+  }, [stage]);
+
+  useEffect(() => {
     return () => {
       clearInterval(pollRef.current);
       clearInterval(elapsedRef.current);
+      clearTimeout(toastTimeoutRef.current);
     };
   }, []);
 
@@ -393,6 +435,12 @@ export default function PayPage({ invoice, code }) {
 
   return (
     <Shell title={invoice.status === "success" ? "Payment Complete" : `Pay KES ${invoice.amount}`} description={invoice.description}>
+      {isOffline && (
+        <div className="offlineBanner">
+          ⚠️ You're offline — reconnect to continue
+        </div>
+      )}
+      {toast && <div className="toast">{toast}</div>}
       {!ready ? (
         <Skeleton />
       ) : (
@@ -442,6 +490,10 @@ export default function PayPage({ invoice, code }) {
                 <span className="dot">•</span>
                 <button className="linkBtn" onClick={() => sendReceiptToWhatsApp(invoice, code)}>
                   Send to WhatsApp
+                </button>
+                <span className="dot">•</span>
+                <button className="linkBtn" onClick={() => window.print()}>
+                  Print
                 </button>
                 <span className="dot">•</span>
                 <button className="linkBtn" onClick={() => downloadICS(invoice, code)}>
@@ -521,14 +573,16 @@ export default function PayPage({ invoice, code }) {
               <p className="recipientLine">You're paying <strong>WHALE_SYS</strong></p>
 
               <div className="amountSection">
-                <p className="amountValue">
+                <p className="amountValue" onClick={() => copyToClipboard(`KES ${invoice.amount}`, "Amount")} role="button" tabIndex={0}>
                   KES {countedAmount.toLocaleString()}
                 </p>
                 <p className="noFees">No additional fees</p>
               </div>
 
               <p className="paymentFor">Payment for: {invoice.description}</p>
-              <p className="refLine">Ref: {code}</p>
+              <p className="refLine" onClick={() => copyToClipboard(code, "Invoice code")} role="button" tabIndex={0}>
+                Ref: {code} <span className="copyHint">tap to copy</span>
+              </p>
 
               <form onSubmit={handleSubmit} className={shake ? "shake" : ""}>
                 <div className="phoneGroup">
@@ -627,7 +681,40 @@ export default function PayPage({ invoice, code }) {
         .recipientLine strong { color: #e2e8f0; }
         .noFees { color: #4ade80; font-size: 11.5px; text-align: center; margin: 6px 0 0; }
         .paymentFor { color: #94a3b8; font-size: 13px; text-align: center; margin: 0 0 4px; line-height: 1.6; }
-        .refLine { color: #475569; font-size: 11px; text-align: center; margin: 0 0 26px; font-family: monospace; }
+        .refLine { color: #475569; font-size: 11px; text-align: center; margin: 0 0 26px; font-family: monospace; cursor: pointer; }
+        .copyHint { color: #334155; font-family: 'Inter', sans-serif; font-size: 10px; margin-left: 4px; }
+        .offlineBanner {
+          background: rgba(248,113,113,0.12);
+          border: 1px solid rgba(248,113,113,0.3);
+          color: #f87171;
+          font-size: 12px;
+          text-align: center;
+          padding: 10px;
+          border-radius: 8px;
+          margin-bottom: 16px;
+        }
+        .toast {
+          position: fixed;
+          bottom: 24px;
+          left: 50%;
+          transform: translateX(-50%);
+          background: #1e293b;
+          color: #e2e8f0;
+          font-size: 13px;
+          padding: 10px 18px;
+          border-radius: 20px;
+          border: 1px solid rgba(255,255,255,0.1);
+          box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+          z-index: 50;
+          animation: toastIn 0.2s ease;
+        }
+        @keyframes toastIn {
+          from { opacity: 0; transform: translate(-50%, 8px); }
+          to { opacity: 1; transform: translate(-50%, 0); }
+        }
+        @media print {
+          .offlineBanner, .toast, .primaryBtn, .linkRow, .geoAccent, .pageFooter { display: none !important; }
+        }
         .expectationNote { color: #475569; font-size: 12px; text-align: center; margin: 10px 0 0; }
         .verifyContext { margin: 16px 0 4px; }
         .verifyContext p { color: #94a3b8; font-size: 13px; text-align: center; margin: 4px 0; }
