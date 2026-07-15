@@ -1,5 +1,9 @@
+// pages/api/invoice-pay.js
+// Called from the public /pay/[code] page when a client submits their phone number.
+
 import { initiateSTKPush } from "../../lib/payhero.js";
-import { getInvoice, markInvoiceUsed } from "../../lib/kv.js";
+import { getInvoice, updateInvoiceStatus } from "../../lib/kv.js";
+import { buildReference } from "../../lib/reference.js";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -18,13 +22,13 @@ export default async function handler(req, res) {
     return res.status(404).json({ error: "Invoice not found or expired" });
   }
 
-  if (invoice.status === "used") {
-    return res.status(410).json({ error: "This link has already been used" });
+  if (invoice.status === "success") {
+    return res.status(410).json({ error: "This invoice has already been paid" });
   }
 
-  await markInvoiceUsed(code);
+  await updateInvoiceStatus(code, "processing");
 
-  const reference = `WHALE-${invoice.chatId}-${Date.now()}`;
+  const reference = buildReference(invoice.chatId, code);
 
   try {
     await initiateSTKPush({
@@ -35,6 +39,7 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true });
   } catch (err) {
     console.error("Invoice STK push error:", err);
+    await updateInvoiceStatus(code, "failed");
     return res.status(500).json({ error: err.message });
   }
 }

@@ -1,5 +1,9 @@
+// lib/payhero.js
+// Wraps the PayHero STK push API.
+
 export function normalizePhone(raw) {
-  let phone = raw.replace(/\D/g, "");
+  // Accepts 07XXXXXXXX, 7XXXXXXXX, 2547XXXXXXXX, +2547XXXXXXXX
+  let phone = raw.replace(/\D/g, ""); // strip non-digits
 
   if (phone.startsWith("0") && phone.length === 10) {
     phone = "254" + phone.slice(1);
@@ -8,7 +12,7 @@ export function normalizePhone(raw) {
   } else if (phone.startsWith("254") && phone.length === 12) {
     // already correct
   } else {
-    return null;
+    return null; // invalid format
   }
   return phone;
 }
@@ -22,6 +26,8 @@ export async function initiateSTKPush({ amount, phoneNumber, reference }) {
     throw new Error(`Invalid amount: ${amount}`);
   }
 
+  // Use a pre-built Basic Auth token if PayHero gave you one directly,
+  // otherwise build it from username + password.
   const authToken =
     process.env.PAYHERO_BASIC_AUTH_TOKEN ||
     Buffer.from(
@@ -50,5 +56,5 @@ export async function initiateSTKPush({ amount, phoneNumber, reference }) {
     throw new Error(data?.error_message || `PayHero request failed (${res.status})`);
   }
 
-  return data;
+  return data; // contains reference / CheckoutRequestID depending on PayHero's response shape
 }

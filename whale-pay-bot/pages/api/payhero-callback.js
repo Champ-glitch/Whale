@@ -1,6 +1,8 @@
 import { sendTelegramMessage, sendTelegramAnimation } from "../../lib/telegram.js";
 import { kesToUsdt } from "../../lib/rates.js";
 import { getRandomQuote, SUCCESS_GIF_URL } from "../../lib/extras.js";
+import { parseReference } from "../../lib/reference.js";
+import { updateInvoiceStatus } from "../../lib/kv.js";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -11,19 +13,25 @@ export default async function handler(req, res) {
   console.log("PayHero callback:", JSON.stringify(body));
 
   const response = body?.response || {};
-  const reference =
+  const rawReference =
     response.ExternalReference || body?.external_reference || body?.reference;
 
-  const chatIdMatch = typeof reference === "string" ? reference.match(/^WHALE-(-?\d+)-/) : null;
+  const parsed = parseReference(rawReference);
 
-  if (!chatIdMatch) {
-    console.warn("Could not extract chat_id from reference:", reference);
+  if (!parsed) {
+    console.warn("Could not parse reference:", rawReference);
     return res.status(200).json({ ok: true });
   }
 
-  const chatId = chatIdMatch[1];
+  const { chatId, invoiceCode } = parsed;
   const success = response.ResultCode === 0 || response.Status === "Success";
   const amount = response.Amount;
+
+  // If this payment came from an invoice link, update its status so the
+  // payment page (which is polling) can pick it up immediately.
+  if (invoiceCode) {
+    await updateInvoiceStatus(invoiceCode, success ? "success" : "failed");
+  }
 
   if (success) {
     let usdtLine = "";
@@ -36,14 +44,14 @@ export default async function handler(req, res) {
     const caption =
       `✅ *Payment received!*\n` +
       `KES ${amount ?? "?"}${usdtLine}\n` +
-      `Reference: \`${reference}\`\n\n` +
+      `Reference: \`${rawReference}\`\n\n` +
       `_${quote}_`;
 
     await sendTelegramAnimation(chatId, SUCCESS_GIF_URL, caption);
   } else {
     await sendTelegramMessage(
       chatId,
-      `❌ Payment not completed (cancelled or failed). Reference: \`${reference}\``
+      `❌ Payment not completed (cancelled or failed). Reference: \`${rawReference}\``
     );
   }
 

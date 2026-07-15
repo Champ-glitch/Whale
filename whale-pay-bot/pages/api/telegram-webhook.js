@@ -1,11 +1,15 @@
+// pages/api/telegram-webhook.js
+// Telegram sends every message to this endpoint (set via setWebhook).
+
 import { initiateSTKPush } from "../../lib/payhero.js";
 import { sendTelegramMessage } from "../../lib/telegram.js";
 import { saveInvoice } from "../../lib/kv.js";
 import { generateInvoiceCode } from "../../lib/invoice.js";
+import { buildReference } from "../../lib/reference.js";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
-    return res.status(200).send("OK");
+    return res.status(200).send("OK"); // Telegram sometimes pings with GET
   }
 
   const message = req.body?.message;
@@ -16,12 +20,14 @@ export default async function handler(req, res) {
   const chatId = message.chat.id;
   const text = message.text.trim();
 
+  // Only respond to the owner's chat ID — silently ignore everyone else.
   const allowedChatId = process.env.OWNER_CHAT_ID;
   if (allowedChatId && String(chatId) !== String(allowedChatId)) {
     console.warn("Ignored message from unauthorized chat:", chatId);
     return res.status(200).json({ ok: true });
   }
 
+  // Match: /link 500 Rent payment for July
   const linkMatch = text.match(/^\/link\s+(\d+)\s+(.+)$/i);
   if (linkMatch) {
     const [, amount, description] = linkMatch;
@@ -44,6 +50,7 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true });
   }
 
+  // Match: /pay 500 0712345678
   const match = text.match(/^\/pay\s+(\d+)\s+(\+?\d{9,12})$/i);
 
   if (!match) {
@@ -66,11 +73,15 @@ export default async function handler(req, res) {
   }
 
   const [, amount, phoneNumber] = match;
-  const reference = `WHALE-${chatId}-${Date.now()}`;
+
+  const reference = buildReference(chatId);
 
   try {
     await sendTelegramMessage(chatId, `⏳ Sending STK push of *KES ${amount}* to *${phoneNumber}*...`);
+
     await initiateSTKPush({ amount, phoneNumber, reference });
+
+    // Note: we do NOT say "paid" here — this only confirms the prompt was sent.
     await sendTelegramMessage(chatId, `📲 Prompt sent. Waiting for client to enter M-Pesa PIN...`);
   } catch (err) {
     console.error("STK push error:", err);
@@ -78,4 +89,4 @@ export default async function handler(req, res) {
   }
 
   return res.status(200).json({ ok: true });
-}
+};

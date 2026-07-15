@@ -1,3 +1,6 @@
+// lib/kv.js
+// Thin wrapper around Vercel's Upstash Redis REST API.
+
 const KV_URL = process.env.KV_REST_API_URL;
 const KV_TOKEN = process.env.KV_REST_API_TOKEN;
 
@@ -14,6 +17,7 @@ async function kvCommand(command) {
   return data.result;
 }
 
+// Store invoice data with a 48-hour expiry (auto-cleans itself, nothing to maintain)
 export async function saveInvoice(code, invoiceData) {
   const value = JSON.stringify(invoiceData);
   await kvCommand(["SET", `invoice:${code}`, value, "EX", 60 * 60 * 48]);
@@ -25,9 +29,9 @@ export async function getInvoice(code) {
   return JSON.parse(value);
 }
 
-export async function markInvoiceUsed(code) {
+export async function updateInvoiceStatus(code, status) {
   const invoice = await getInvoice(code);
   if (!invoice) return;
-  invoice.status = "used";
+  invoice.status = status;
   await saveInvoice(code, invoice);
 }
