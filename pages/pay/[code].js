@@ -768,6 +768,10 @@ function Shell({ children, title, description }) {
           <div className="geoAccent" aria-hidden="true" />
           {children}
         </div>
+        <div className="pageFooter">
+          <p>© {new Date().getFullYear()} WHALE_SYS</p>
+          <p>Self-Taught. Self-Made.</p>
+        </div>
       </div>
       <style jsx global>{`
         * { font-family: 'Inter', system-ui, sans-serif; box-sizing: border-box; }
@@ -778,9 +782,12 @@ function Shell({ children, title, description }) {
           min-height: 100vh;
           background:
             radial-gradient(circle at 50% -10%, rgba(0,206,209,0.06), transparent 45%),
+            radial-gradient(rgba(255,255,255,0.035) 1px, transparent 1px),
             linear-gradient(160deg, #060b14 0%, #0a1420 55%, #060b14 100%);
+          background-size: auto, 22px 22px, auto;
           display: flex;
-          justify-content: center;
+          flex-direction: column;
+          align-items: center;
           padding: 0;
         }
         .card {
@@ -794,6 +801,9 @@ function Shell({ children, title, description }) {
           box-shadow: none;
           position: relative;
           overflow: hidden;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
         }
         @media (min-width: 480px) {
           .card {
@@ -814,6 +824,18 @@ function Shell({ children, title, description }) {
           opacity: 0.85;
           clip-path: polygon(100% 0, 100% 100%, 20% 0);
           pointer-events: none;
+        }
+        .pageFooter {
+          padding: 24px 0 32px;
+          text-align: center;
+          width: 100%;
+          max-width: 480px;
+        }
+        .pageFooter p {
+          color: #2c3a52;
+          font-size: 11px;
+          margin: 2px 0;
+          letter-spacing: 0.3px;
         }
       `}</style>
     </>
