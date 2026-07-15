@@ -26,6 +26,8 @@ export default async function handler(req, res) {
   const { chatId, invoiceCode } = parsed;
   const success = response.ResultCode === 0 || response.Status === "Success";
   const amount = response.Amount;
+  const senderPhone = response.Phone;
+  const mpesaReceipt = response.MpesaReceiptNumber;
 
   if (invoiceCode) {
     await updateInvoiceStatus(invoiceCode, success ? "success" : "failed");
@@ -42,6 +44,8 @@ export default async function handler(req, res) {
     const caption =
       `✅ *Payment received!*\n` +
       `KES ${amount ?? "?"}${usdtLine}\n` +
+      (senderPhone ? `From: ${senderPhone}\n` : "") +
+      (mpesaReceipt ? `M-Pesa Receipt: ${mpesaReceipt}\n` : "") +
       `Reference: \`${rawReference}\`\n\n` +
       `_${quote}_`;
 

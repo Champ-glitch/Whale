@@ -115,9 +115,15 @@ export default function PayPage({ invoice, code }) {
     <Shell>
       {stage === "success" ? (
         <>
+          <Confetti />
           <StatusIcon type="success" />
           <p className="statusText success">Payment completed! 🎉</p>
           <p className="subtle">KES {invoice.amount} received successfully.</p>
+          <div className="receiptCard">
+            <p className="thankYou">Thank you for trusting WHALE_SYS 🐋</p>
+            <p className="receiptLine">Invoice: <span>{code}</span></p>
+            <p className="receiptLine">{invoice.description}</p>
+          </div>
         </>
       ) : stage === "verifying" || stage === "sending" ? (
         <>
@@ -259,6 +265,16 @@ export default function PayPage({ invoice, code }) {
         .statusText.success { color: #4ade80; }
         .statusText.error { color: #f87171; }
         .subtle { color: #94a3b8; font-size: 14px; text-align: center; margin: 0 0 20px; }
+        .receiptCard {
+          background: rgba(255,255,255,0.04);
+          border: 1px solid rgba(0,206,209,0.3);
+          border-radius: 12px;
+          padding: 16px 18px;
+          margin-top: 14px;
+        }
+        .thankYou { color: #FFD700; font-weight: 700; font-size: 15px; text-align: center; margin: 0 0 10px; }
+        .receiptLine { color: #cbd5e1; font-size: 13px; text-align: center; margin: 4px 0; }
+        .receiptLine span { color: #00CED1; font-weight: 600; }
         .fadeIn1 { animation: fadeIn 0.5s ease both; }
         .fadeIn2 { animation: fadeIn 0.5s ease 0.15s both; }
         .fadeIn3 { animation: fadeIn 0.5s ease 0.3s both; }
@@ -268,6 +284,50 @@ export default function PayPage({ invoice, code }) {
         }
       `}</style>
     </Shell>
+  );
+}
+
+function Confetti() {
+  const pieces = Array.from({ length: 18 });
+  const colors = ["#00CED1", "#FFD700", "#FF1493", "#9D00FF", "#00FF7F"];
+  return (
+    <div className="confettiWrap" aria-hidden="true">
+      {pieces.map((_, i) => (
+        <span
+          key={i}
+          className="piece"
+          style={{
+            left: `${Math.random() * 100}%`,
+            background: colors[i % colors.length],
+            animationDelay: `${Math.random() * 0.4}s`,
+            animationDuration: `${1.2 + Math.random() * 0.8}s`,
+          }}
+        />
+      ))}
+      <style jsx>{`
+        .confettiWrap {
+          position: absolute;
+          top: 0; left: 0; right: 0;
+          height: 0;
+          overflow: visible;
+          pointer-events: none;
+        }
+        .piece {
+          position: absolute;
+          top: -10px;
+          width: 7px;
+          height: 12px;
+          opacity: 0.9;
+          animation-name: fall;
+          animation-timing-function: ease-in;
+          animation-fill-mode: forwards;
+          border-radius: 2px;
+        }
+        @keyframes fall {
+          to { transform: translateY(280px) rotate(360deg); opacity: 0; }
+        }
+      `}</style>
+    </div>
   );
 }
 
@@ -346,8 +406,22 @@ function Shell({ children }) {
           border-radius: 20px;
           padding: 32px 28px;
           border: 1px solid rgba(255,255,255,0.08);
+          box-shadow: 0 0 0 1px rgba(0,206,209,0.08), 0 20px 60px rgba(0,0,0,0.4);
           position: relative;
           z-index: 1;
+          overflow: hidden;
+        }
+        .card::before {
+          content: "";
+          position: absolute;
+          top: -50%; left: -50%;
+          width: 200%; height: 200%;
+          background: conic-gradient(from 0deg, transparent, rgba(0,206,209,0.08), transparent 30%);
+          animation: rotate 8s linear infinite;
+          pointer-events: none;
+        }
+        @keyframes rotate {
+          to { transform: rotate(360deg); }
         }
         .brand {
           color: #FFD700;
