@@ -516,6 +516,39 @@ export default function PayPage({ invoice, code }) {
                   PAY NOW <span className="arrow">→</span>
                 </button>
 
+                <div className="featureGrid">
+                  <div className="featureItem">
+                    <span className="featureIcon">🔒</span>
+                    <span>Encrypted</span>
+                  </div>
+                  <div className="featureItem">
+                    <span className="featureIcon">⚡</span>
+                    <span>Instant</span>
+                  </div>
+                  <div className="featureItem">
+                    <span className="featureIcon">✅</span>
+                    <span>No Hidden Fees</span>
+                  </div>
+                </div>
+
+                <div className="howItWorks">
+                  <p className="howTitle">How it works</p>
+                  <div className="howStep">
+                    <span className="howNum">1</span>
+                    <span>Enter your M-Pesa phone number above</span>
+                  </div>
+                  <div className="howStep">
+                    <span className="howNum">2</span>
+                    <span>You'll get a prompt on your phone — enter your PIN</span>
+                  </div>
+                  <div className="howStep">
+                    <span className="howNum">3</span>
+                    <span>This page confirms your payment automatically</span>
+                  </div>
+                </div>
+
+                <FAQAccordion code={code} whatsapp={SUPPORT_WHATSAPP} />
+
                 <div className="footerTrust">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6l8-4z" stroke="#64748b" strokeWidth="1.5"/></svg>
                   256-bit SSL
@@ -575,7 +608,35 @@ export default function PayPage({ invoice, code }) {
         .payNowBtn:disabled { opacity: 0.35; cursor: not-allowed; }
         .payNowBtn .arrow { display: inline-block; margin-left: 4px; }
         .expiryNote { text-align: center; margin: 14px 0 0; }
-        .footerTrust { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 36px; color: #64748b; font-size: 10.5px; flex-wrap: wrap; }
+        .featureGrid { display: flex; justify-content: space-between; margin-top: 24px; gap: 8px; }
+        .featureItem {
+          flex: 1;
+          text-align: center;
+          background: rgba(255,255,255,0.03);
+          border: 1px solid rgba(255,255,255,0.06);
+          border-radius: 10px;
+          padding: 12px 6px;
+          color: #94a3b8;
+          font-size: 10.5px;
+          font-weight: 600;
+        }
+        .featureIcon { display: block; font-size: 18px; margin-bottom: 6px; }
+        .howItWorks { margin-top: 26px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 18px; }
+        .howTitle { color: #64748b; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; margin: 0 0 12px; }
+        .howStep { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 12px; color: #94a3b8; font-size: 12.5px; line-height: 1.5; }
+        .howNum {
+          flex-shrink: 0;
+          width: 20px; height: 20px;
+          border-radius: 50%;
+          background: rgba(0,206,209,0.15);
+          color: #00CED1;
+          font-size: 11px;
+          font-weight: 700;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .footerTrust { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 24px; color: #64748b; font-size: 10.5px; flex-wrap: wrap; }
         .helpInline { background: none; border: none; color: #64748b; font-size: 10.5px; cursor: pointer; padding: 0; text-decoration: underline; }
         .topRow { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
         .brandMark { display: flex; align-items: center; gap: 6px; color: #e2e8f0; font-weight: 700; font-size: 13px; letter-spacing: 0.4px; }
@@ -660,6 +721,64 @@ function StepBar({ step }) {
       ))}
       <style jsx>{`
         .stepBar { display: flex; gap: 6px; margin-bottom: 28px; }
+      `}</style>
+    </div>
+  );
+}
+
+function FAQAccordion({ code, whatsapp }) {
+  const [openIndex, setOpenIndex] = useState(null);
+  const faqs = [
+    {
+      q: "Is this payment secure?",
+      a: "Yes. Payments are processed directly through Safaricom M-Pesa via PayHero, a licensed payment processor. WHALE_SYS never sees or stores your M-Pesa PIN.",
+    },
+    {
+      q: "I didn't get a prompt on my phone",
+      a: "This can happen if your phone has no signal or Airtime balance for the USSD session. Try again, or tap \"Need help?\" below to reach support directly.",
+    },
+    {
+      q: "Can I use this link again?",
+      a: "No — each payment link is single-use and automatically locks once a payment is completed, so it can't be paid twice.",
+    },
+  ];
+
+  return (
+    <div className="faqWrap">
+      <p className="faqTitle">Frequently asked</p>
+      {faqs.map((item, i) => (
+        <div key={i} className="faqItem">
+          <button
+            type="button"
+            className="faqQ"
+            onClick={() => setOpenIndex(openIndex === i ? null : i)}
+          >
+            {item.q}
+            <span className={`faqCaret ${openIndex === i ? "open" : ""}`}>⌄</span>
+          </button>
+          {openIndex === i && <p className="faqA">{item.a}</p>}
+        </div>
+      ))}
+      <style jsx>{`
+        .faqWrap { margin-top: 28px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 18px; }
+        .faqTitle { color: #64748b; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; margin: 0 0 10px; }
+        .faqItem { border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .faqQ {
+          width: 100%;
+          background: none;
+          border: none;
+          color: #cbd5e1;
+          font-size: 13px;
+          text-align: left;
+          padding: 12px 0;
+          cursor: pointer;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+        .faqCaret { color: #475569; transition: transform 0.2s; font-size: 16px; }
+        .faqCaret.open { transform: rotate(180deg); }
+        .faqA { color: #64748b; font-size: 12.5px; line-height: 1.6; margin: 0 0 14px; padding-right: 10px; }
       `}</style>
     </div>
   );
