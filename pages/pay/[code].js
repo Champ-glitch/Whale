@@ -57,55 +57,128 @@ function useCountUp(target, durationMs = 700) {
   return value;
 }
 
-function downloadReceiptImage(invoice, code) {
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+async function downloadReceiptImage(invoice, code) {
+  const W = 640, H = 900;
   const canvas = document.createElement("canvas");
-  canvas.width = 600;
-  canvas.height = 760;
+  canvas.width = W;
+  canvas.height = H;
   const ctx = canvas.getContext("2d");
 
-  const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
-  grad.addColorStop(0, "#10233b");
-  grad.addColorStop(1, "#0A1628");
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  // Outer background
+  const bgGrad = ctx.createLinearGradient(0, 0, 0, H);
+  bgGrad.addColorStop(0, "#152a45");
+  bgGrad.addColorStop(1, "#060e1a");
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, W, H);
 
-  ctx.fillStyle = "#FFD700";
-  ctx.font = "bold 28px sans-serif";
-  ctx.textAlign = "center";
-  ctx.fillText("WHALE_SYS", canvas.width / 2, 80);
+  // Soft color blobs for texture
+  ctx.globalAlpha = 0.18;
+  const blob = (x, y, r, color) => {
+    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, color);
+    g.addColorStop(1, "transparent");
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  };
+  blob(60, 60, 180, "#9D00FF");
+  blob(W - 60, H - 60, 160, "#FF1493");
+  ctx.globalAlpha = 1;
 
-  ctx.font = "56px sans-serif";
-  ctx.fillText("✅", canvas.width / 2, 200);
-
-  ctx.fillStyle = "#4ade80";
-  ctx.font = "bold 30px sans-serif";
-  ctx.fillText("Payment Completed", canvas.width / 2, 260);
-
-  ctx.fillStyle = "#ffffff";
-  ctx.font = "bold 42px sans-serif";
-  ctx.fillText(`KES ${invoice.amount}`, canvas.width / 2, 330);
-
-  ctx.fillStyle = "#94a3b8";
-  ctx.font = "20px sans-serif";
-  ctx.fillText(invoice.description, canvas.width / 2, 380);
-
-  ctx.strokeStyle = "rgba(0,206,209,0.4)";
-  ctx.beginPath();
-  ctx.moveTo(80, 430);
-  ctx.lineTo(canvas.width - 80, 430);
+  // Card
+  const pad = 40;
+  roundRect(ctx, pad, pad, W - pad * 2, H - pad * 2, 28);
+  ctx.fillStyle = "rgba(15,28,48,0.9)";
+  ctx.fill();
+  ctx.strokeStyle = "rgba(0,206,209,0.35)";
+  ctx.lineWidth = 2;
   ctx.stroke();
 
-  ctx.fillStyle = "#00CED1";
-  ctx.font = "bold 18px sans-serif";
-  ctx.fillText(`Invoice: ${code}`, canvas.width / 2, 480);
+  ctx.textAlign = "center";
 
-  ctx.fillStyle = "#e2e8f0";
-  ctx.font = "16px sans-serif";
-  ctx.fillText(new Date().toLocaleString(), canvas.width / 2, 520);
-
+  // Brand
   ctx.fillStyle = "#FFD700";
-  ctx.font = "italic 16px sans-serif";
-  ctx.fillText("Thank you for trusting WHALE_SYS 🐋", canvas.width / 2, 600);
+  ctx.font = "bold 26px sans-serif";
+  ctx.fillText("WHALE_SYS", W / 2, 130);
+
+  // Whale icon
+  try {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    await new Promise((resolve, reject) => {
+      img.onload = resolve;
+      img.onerror = reject;
+      img.src = "https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/svg/1f40b.svg";
+    });
+    ctx.drawImage(img, W / 2 - 45, 155, 90, 90);
+  } catch (e) {
+    ctx.font = "70px sans-serif";
+    ctx.fillText("🐋", W / 2, 230);
+  }
+
+  // Success badge
+  ctx.fillStyle = "#4ade80";
+  ctx.font = "bold 26px sans-serif";
+  ctx.fillText("✅ Payment Completed", W / 2, 300);
+
+  // Amount
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "bold 52px sans-serif";
+  ctx.fillText(`KES ${invoice.amount.toLocaleString()}`, W / 2, 375);
+
+  // Description
+  ctx.fillStyle = "#94a3b8";
+  ctx.font = "20px sans-serif";
+  ctx.fillText(invoice.description, W / 2, 415);
+
+  // Divider (dashed, receipt-style)
+  ctx.setLineDash([6, 8]);
+  ctx.strokeStyle = "rgba(0,206,209,0.4)";
+  ctx.beginPath();
+  ctx.moveTo(pad + 40, 460);
+  ctx.lineTo(W - pad - 40, 460);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Details block
+  ctx.textAlign = "left";
+  const detailX = pad + 50;
+  let y = 510;
+  const row = (label, value) => {
+    ctx.fillStyle = "#64748b";
+    ctx.font = "16px sans-serif";
+    ctx.fillText(label, detailX, y);
+    ctx.textAlign = "right";
+    ctx.fillStyle = "#e2e8f0";
+    ctx.font = "bold 16px sans-serif";
+    ctx.fillText(value, W - pad - 50, y);
+    ctx.textAlign = "left";
+    y += 42;
+  };
+  row("Invoice", code);
+  row("Date", new Date().toLocaleDateString());
+  row("Time", new Date().toLocaleTimeString());
+
+  // Footer
+  ctx.textAlign = "center";
+  ctx.fillStyle = "#FFD700";
+  ctx.font = "italic 17px sans-serif";
+  ctx.fillText("Thank you for trusting WHALE_SYS 🐋", W / 2, H - pad - 40);
+
+  ctx.fillStyle = "#475569";
+  ctx.font = "13px sans-serif";
+  ctx.fillText("Self-Taught. Self-Made.", W / 2, H - pad - 14);
 
   const link = document.createElement("a");
   link.download = `WHALE_SYS-receipt-${code}.png`;
@@ -550,32 +623,17 @@ function Sparkles() {
 
 function WhaleSVG() {
   return (
-    <svg width="120" height="90" viewBox="0 0 200 150" className="whaleSvg">
-      <defs>
-        <linearGradient id="whaleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#00CED1" />
-          <stop offset="100%" stopColor="#0891b2" />
-        </linearGradient>
-      </defs>
-      <path
-        d="M20 90 Q10 70 30 55 Q60 30 110 35 Q150 38 175 60 Q185 68 175 75 Q160 85 130 85 L130 100 Q130 110 120 108 L110 90 Q70 100 40 95 Q25 93 20 90 Z"
-        fill="url(#whaleGrad)"
-        stroke="#FFD700"
-        strokeWidth="2"
-      />
-      <circle cx="150" cy="58" r="4" fill="#0A1628" />
-      <path d="M175 60 Q195 50 190 40 Q185 45 178 55" fill="#00CED1" opacity="0.7" />
-      <style jsx>{`
-        .whaleSvg {
-          filter: drop-shadow(0 0 16px #00CED1) drop-shadow(0 0 8px #FFD700);
-          animation: float 3.5s ease-in-out infinite;
-        }
-        @keyframes float {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-10px); }
-        }
-      `}</style>
-    </svg>
+    <img
+      src="https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/svg/1f40b.svg"
+      alt="Whale"
+      width="110"
+      height="110"
+      className="whaleImg"
+      style={{
+        filter: "drop-shadow(0 0 18px #00CED1) drop-shadow(0 0 10px #FFD700)",
+        animation: "floatWhale 3.5s ease-in-out infinite",
+      }}
+    />
   );
 }
 
@@ -677,6 +735,10 @@ function Shell({ children, title, description }) {
       <style jsx global>{`
         * { font-family: 'Poppins', system-ui, sans-serif; }
         body { margin: 0; }
+        @keyframes floatWhale {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-10px); }
+        }
       `}</style>
       <style jsx>{`
         .page {
