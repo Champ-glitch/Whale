@@ -2,7 +2,7 @@ import { sendTelegramMessage, sendTelegramAnimation } from "../../lib/telegram.j
 import { kesToUsdt } from "../../lib/rates.js";
 import { getRandomQuote, getRandomGif } from "../../lib/extras.js";
 import { parseReference } from "../../lib/reference.js";
-import { updateInvoiceStatus } from "../../lib/kv.js";
+import { updateInvoiceStatus, recordSuccessStats } from "../../lib/kv.js";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -51,6 +51,14 @@ export default async function handler(req, res) {
         `_${quote}_`;
 
       await sendTelegramAnimation(chatId, getRandomGif(), caption);
+
+      const stats = await recordSuccessStats(Number(amount) || 0);
+      if (stats.crossedMilestone) {
+        await sendTelegramMessage(
+          chatId,
+          `🎉🎉 *MILESTONE!* You've now collected over *KES ${stats.crossedMilestone.toLocaleString()}* all-time with WHALE_SYS Pay!`
+        );
+      }
     } else {
       await sendTelegramMessage(
         chatId,
