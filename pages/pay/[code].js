@@ -301,13 +301,6 @@ export default function PayPage({ invoice, code }) {
   }, [ready]);
 
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem("whale_last_phone");
-      if (saved) setPhone(saved);
-    } catch (e) {}
-  }, []);
-
-  useEffect(() => {
     function goOffline() { setIsOffline(true); }
     function goOnline() { setIsOffline(false); }
     window.addEventListener("offline", goOffline);
@@ -395,10 +388,6 @@ export default function PayPage({ invoice, code }) {
     setPhoneError("");
     setStage("sending");
     setErrorMsg("");
-
-    try {
-      localStorage.setItem("whale_last_phone", phone);
-    } catch (e) {}
 
     try {
       const res = await fetch("/api/invoice-pay", {
