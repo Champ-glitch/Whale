@@ -132,6 +132,30 @@ export default async function handler(req, res) {
     }
   }
 
+  // ---- /help ----
+  if (text === "/help") {
+    await sendTelegramMessage(
+      chatId,
+      "📖 *WHALE_SYS Pay Bot — Commands*\n\n" +
+        "*Payments*\n" +
+        "`/pay <amount> <phone>` — send an STK push directly\n" +
+        "e.g. `/pay 500 0712345678`\n\n" +
+        "`/link <amount> <description>` — create a shareable payment link\n" +
+        "e.g. `/link 500 Rent payment for July`\n\n" +
+        "*Managing invoices*\n" +
+        "`/invoices` — view your 10 most recent invoices\n" +
+        "`/cancel <code>` — deactivate a link\n" +
+        "`/resend <code>` — resend an existing link\n\n" +
+        "*Reports*\n" +
+        "`/today` — today's collection summary\n\n" +
+        "*Safety*\n" +
+        "Payments over KES 10,000 need a YES confirmation.\n" +
+        "This bot only responds to your account.\n\n" +
+        "Type `/start` for a quick welcome message."
+    );
+    return res.status(200).json({ ok: true });
+  }
+
   // ---- /pay 500 0712345678 ----
   const match = text.match(/^\/pay\s+(\d+)\s+(\+?\d{9,12})$/i);
 
@@ -145,12 +169,10 @@ export default async function handler(req, res) {
       await sendTelegramMessage(
         chatId,
         "👋 *WHALE_SYS Pay Bot*\n\n" +
-          "`/pay <amount> <phone>` — trigger an STK push\n" +
-          "`/link <amount> <description>` — create a shareable payment link\n" +
-          "`/invoices` — view recent invoices\n" +
-          "`/today` — today's collection summary\n" +
-          "`/cancel <code>` — deactivate an invoice link\n" +
-          "`/resend <code>` — resend an invoice link"
+          "Send `/help` anytime to see the full list of commands.\n\n" +
+          "Quick start:\n" +
+          "`/pay <amount> <phone>` — send an STK push\n" +
+          "`/link <amount> <description>` — create a payment link"
       );
     }
     return res.status(200).json({ ok: true });

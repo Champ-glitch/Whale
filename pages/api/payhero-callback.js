@@ -1,6 +1,6 @@
 import { sendTelegramMessage, sendTelegramAnimation } from "../../lib/telegram.js";
 import { kesToUsdt } from "../../lib/rates.js";
-import { getRandomQuote, SUCCESS_GIF_URL } from "../../lib/extras.js";
+import { getRandomQuote, getRandomGif } from "../../lib/extras.js";
 import { parseReference } from "../../lib/reference.js";
 import { updateInvoiceStatus } from "../../lib/kv.js";
 
@@ -50,7 +50,7 @@ export default async function handler(req, res) {
         `Reference: \`${rawReference}\`\n\n` +
         `_${quote}_`;
 
-      await sendTelegramAnimation(chatId, SUCCESS_GIF_URL, caption);
+      await sendTelegramAnimation(chatId, getRandomGif(), caption);
     } else {
       await sendTelegramMessage(
         chatId,
