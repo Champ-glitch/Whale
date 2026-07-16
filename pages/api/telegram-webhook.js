@@ -14,6 +14,10 @@ import {
   getStats,
   saveRefundNote,
   listRefundNotes,
+  savePendingReset,
+  getPendingReset,
+  clearPendingReset,
+  resetAll,
 } from "../../lib/kv.js";
 import { generateInvoiceCode } from "../../lib/invoice.js";
 import { buildReference } from "../../lib/reference.js";
@@ -126,6 +130,34 @@ export default async function handler(req, res) {
   // ---- /stats ----
   if (text === "/stats") {
     await handleStatsCommand(chatId);
+    return res.status(200).json({ ok: true });
+  }
+
+  // ---- /reset ----
+  if (text === "/reset") {
+    await savePendingReset(chatId);
+    await sendTelegramMessage(
+      chatId,
+      "⚠️ *This will permanently delete:*\n" +
+        "• All invoices\n• All saved nicknames\n• All stats & streak\n• All refund notes\n\n" +
+        "This cannot be undone.\n\n" +
+        "Type *RESET* (exact word, all caps) within 60 seconds to confirm."
+    );
+    return res.status(200).json({ ok: true });
+  }
+
+  if (text === "RESET") {
+    const pending = await getPendingReset(chatId);
+    if (pending) {
+      await clearPendingReset(chatId);
+      const deletedCount = await resetAll();
+      await sendTelegramMessage(
+        chatId,
+        `🧹 *System reset complete.*\n${deletedCount} records cleared.\n\nStarting fresh — send /start to begin.`
+      );
+    } else {
+      await sendTelegramMessage(chatId, "No reset in progress. Type /reset first.");
+    }
     return res.status(200).json({ ok: true });
   }
 
@@ -312,7 +344,9 @@ async function handleHelpCommand(chatId) {
       "`/refunds` — view refund notes\n\n" +
       "*Safety*\n" +
       "Payments over KES 10,000 need a YES confirmation.\n" +
-      "This bot only responds to your account."
+      "This bot only responds to your account.\n\n" +
+      "*Admin*\n" +
+      "`/reset` — wipe all data and start fresh (requires typing RESET to confirm)"
   );
 }
 
