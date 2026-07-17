@@ -516,13 +516,26 @@ async function handleBalanceCommand(chatId) {
   const balance = await getBalance();
   const stats = await getStats();
   const totalOut = await getTotalDeducted();
+
+  const totalMoved = stats.total + totalOut;
+  const inRatio = totalMoved > 0 ? stats.total / totalMoved : 1;
+  const filledBlocks = Math.round(inRatio * 10);
+  const bar = "🟩".repeat(filledBlocks) + "🟥".repeat(10 - filledBlocks);
+  const inPct = Math.round(inRatio * 100);
+
   await sendTelegramMessage(
     chatId,
-    `🏦 *Bank Balance*\n\n` +
-      `💰 Current balance: *KES ${balance.toLocaleString()}*\n\n` +
-      `⬆️ Total in: KES ${stats.total.toLocaleString()}\n` +
-      `⬇️ Total out: KES ${totalOut.toLocaleString()}\n\n` +
-      `_Balance updates automatically on every payment received. Log withdrawals with /deduct._`
+    `🏦 *WHALE_SYS BANK CARD*\n` +
+      `━━━━━━━━━━━━━━━━━━━\n\n` +
+      `💳 *KES ${balance.toLocaleString()}*\n` +
+      `_current balance_\n\n` +
+      `━━━━━━━━━━━━━━━━━━━\n` +
+      `⬆️ In    \`KES ${stats.total.toLocaleString()}\`\n` +
+      `⬇️ Out   \`KES ${totalOut.toLocaleString()}\`\n` +
+      `━━━━━━━━━━━━━━━━━━━\n\n` +
+      `${bar}\n` +
+      `${inPct}% in · ${100 - inPct}% out\n\n` +
+      `_Updates automatically on every payment. Use /deduct to log spending._`
   );
 }
 
