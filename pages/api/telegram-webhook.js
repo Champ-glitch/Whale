@@ -21,6 +21,7 @@ import {
 } from "../../lib/kv.js";
 import { generateInvoiceCode } from "../../lib/invoice.js";
 import { buildReference } from "../../lib/reference.js";
+import { parseIntent } from "../../lib/groq.js";
 
 const LARGE_AMOUNT_THRESHOLD = 10000; // KES - amounts above this need confirmation
 
@@ -237,23 +238,7 @@ export default async function handler(req, res) {
   const linkMatch = text.match(/^\/link\s+(\d+)\s+(.+)$/i);
   if (linkMatch) {
     const [, amount, description] = linkMatch;
-    const code = generateInvoiceCode();
-
-    await saveInvoice(code, {
-      amount: Number(amount),
-      description,
-      chatId,
-      status: "pending",
-      createdAt: Date.now(),
-    });
-
-    const baseUrl = `https://${req.headers.host}`;
-    const link = `${baseUrl}/pay/${code}`;
-
-    await sendTelegramMessage(
-      chatId,
-      `🔗 *Invoice created*\nAmount: KES ${amount}\nDescription: ${description}\nInvoice: \`${code}\`\n\n${link}`
-    );
+    await createInvoiceLink(chatId, amount, description, req.headers.host);
     return res.status(200).json({ ok: true });
   }
 
@@ -288,13 +273,71 @@ export default async function handler(req, res) {
         chatId,
         "Format: `/pay <amount> <phone>` or `/pay <amount> @nickname`\nExample: `/pay 500 0712345678`"
       );
+      return res.status(200).json({ ok: true });
     }
+
+    // Anything else that didn't match a known command - hand off to Groq.
+    // It only classifies intent; actual money actions still run through the
+    // exact same strict functions used above.
+    const groqAllowed = await checkRateLimit(`groq:${chatId}`, 15, 60);
+    if (!groqAllowed) {
+      return res.status(200).json({ ok: true });
+    }
+
+    const parsed = await parseIntent(text);
+
+    if (parsed.intent === "pay" && parsed.amount && parsed.recipient) {
+      let phone = parsed.recipient;
+      if (phone.startsWith("@")) {
+        const name = phone.slice(1);
+        const savedPhone = await getNickname(chatId, name);
+        if (!savedPhone) {
+          await sendTelegramMessage(chatId, `No saved nickname *${name}*. Add one: \`/nickname add ${name} 0712345678\``);
+          return res.status(200).json({ ok: true });
+        }
+        phone = savedPhone;
+      }
+      await routePay(chatId, parsed.amount, phone);
+    } else if (parsed.intent === "link" && parsed.amount && parsed.description) {
+      await createInvoiceLink(chatId, parsed.amount, parsed.description, req.headers.host);
+    } else if (parsed.intent === "invoices") {
+      await handleInvoicesCommand(chatId);
+    } else if (parsed.intent === "today") {
+      await handleTodayCommand(chatId);
+    } else if (parsed.intent === "stats") {
+      await handleStatsCommand(chatId);
+    } else if (parsed.intent === "help") {
+      await handleHelpCommand(chatId);
+    } else {
+      await sendTelegramMessage(chatId, parsed.reply || "Not sure what you meant — try /help.");
+    }
+
     return res.status(200).json({ ok: true });
   }
 
   const [, amount, phoneNumber] = payPhoneMatch;
   await routePay(chatId, amount, phoneNumber);
   return res.status(200).json({ ok: true });
+}
+
+async function createInvoiceLink(chatId, amount, description, host) {
+  const code = generateInvoiceCode();
+
+  await saveInvoice(code, {
+    amount: Number(amount),
+    description,
+    chatId,
+    status: "pending",
+    createdAt: Date.now(),
+  });
+
+  const baseUrl = `https://${host}`;
+  const link = `${baseUrl}/pay/${code}`;
+
+  await sendTelegramMessage(
+    chatId,
+    `🔗 *Invoice created*\nAmount: KES ${amount}\nDescription: ${description}\nInvoice: \`${code}\`\n\n${link}`
+  );
 }
 
 async function routePay(chatId, amount, phoneNumber) {
@@ -325,6 +368,8 @@ async function handleHelpCommand(chatId) {
   await sendTelegramMessage(
     chatId,
     "📖 *WHALE_SYS Pay Bot — Commands*\n\n" +
+      "*Just talk to me too*\n" +
+      "You don't need exact commands — try \"send 500 to john\" or \"how'd I do today\" and I'll figure it out.\n\n" +
       "*Payments*\n" +
       "`/pay <amount> <phone>` — send an STK push (alias: `/p`)\n" +
       "`/pay <amount> @nickname` — pay a saved contact\n" +
