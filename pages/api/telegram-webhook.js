@@ -18,6 +18,10 @@ import {
   getPendingReset,
   clearPendingReset,
   resetAll,
+  getChatHistory,
+  appendChatHistory,
+  incrementGroqUsage,
+  getGroqUsage,
 } from "../../lib/kv.js";
 import { generateInvoiceCode } from "../../lib/invoice.js";
 import { buildReference } from "../../lib/reference.js";
@@ -284,34 +288,60 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true });
     }
 
-    const parsed = await parseIntent(text);
+    await incrementGroqUsage();
+    const history = await getChatHistory(chatId);
+    const parsed = await parseIntent(text, history);
 
-    if (parsed.intent === "pay" && parsed.amount && parsed.recipient) {
+    // Guard: never let a malformed amount/recipient reach real money logic.
+    const validAmount = parsed.amount && Number(parsed.amount) > 0 && Number.isFinite(Number(parsed.amount));
+    const validRecipient =
+      parsed.recipient &&
+      (/^@\S+$/.test(parsed.recipient) || /^\+?\d{9,12}$/.test(parsed.recipient.replace(/\s/g, "")));
+
+    let replyForHistory = parsed.reply || "";
+
+    if (parsed.intent === "pay" && validAmount && validRecipient) {
       let phone = parsed.recipient;
       if (phone.startsWith("@")) {
         const name = phone.slice(1);
         const savedPhone = await getNickname(chatId, name);
         if (!savedPhone) {
-          await sendTelegramMessage(chatId, `No saved nickname *${name}*. Add one: \`/nickname add ${name} 0712345678\``);
+          const msg = `No saved nickname *${name}*. Add one: \`/nickname add ${name} 0712345678\``;
+          await sendTelegramMessage(chatId, msg);
+          await appendChatHistory(chatId, text, msg);
           return res.status(200).json({ ok: true });
         }
         phone = savedPhone;
       }
       await routePay(chatId, parsed.amount, phone);
+      replyForHistory = `[Sent STK push of KES ${parsed.amount} to ${phone}]`;
+    } else if (parsed.intent === "pay") {
+      // Groq said "pay" but amount/recipient didn't pass validation - treat as chat instead of guessing.
+      const msg = parsed.reply || "I need a clear amount and phone number (or @nickname) to send that.";
+      await sendTelegramMessage(chatId, msg);
+      replyForHistory = msg;
     } else if (parsed.intent === "link" && parsed.amount && parsed.description) {
       await createInvoiceLink(chatId, parsed.amount, parsed.description, req.headers.host);
+      replyForHistory = `[Created invoice link for KES ${parsed.amount}: ${parsed.description}]`;
     } else if (parsed.intent === "invoices") {
       await handleInvoicesCommand(chatId);
+      replyForHistory = "[Showed recent invoices]";
     } else if (parsed.intent === "today") {
       await handleTodayCommand(chatId);
+      replyForHistory = "[Showed today's summary]";
     } else if (parsed.intent === "stats") {
       await handleStatsCommand(chatId);
+      replyForHistory = "[Showed all-time stats]";
     } else if (parsed.intent === "help") {
       await handleHelpCommand(chatId);
+      replyForHistory = "[Showed help menu]";
     } else {
-      await sendTelegramMessage(chatId, parsed.reply || "Not sure what you meant — try /help.");
+      const msg = parsed.reply || "Not sure what you meant — try /help.";
+      await sendTelegramMessage(chatId, msg);
+      replyForHistory = msg;
     }
 
+    await appendChatHistory(chatId, text, replyForHistory);
     return res.status(200).json({ ok: true });
   }
 
@@ -431,11 +461,13 @@ async function handleTodayCommand(chatId) {
 
 async function handleStatsCommand(chatId) {
   const stats = await getStats();
+  const groqCount = await getGroqUsage();
   await sendTelegramMessage(
     chatId,
     `🏆 *All-Time Stats*\n\n` +
       `💰 Total collected: KES ${stats.total.toLocaleString()}\n` +
       `✅ Successful payments: ${stats.count}\n` +
-      `🔥 Current streak: ${stats.streak} day${stats.streak === 1 ? "" : "s"}`
+      `🔥 Current streak: ${stats.streak} day${stats.streak === 1 ? "" : "s"}\n` +
+      `🧠 Chat messages handled: ${groqCount}`
   );
 }
