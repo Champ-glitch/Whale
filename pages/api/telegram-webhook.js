@@ -22,6 +22,10 @@ import {
   appendChatHistory,
   incrementGroqUsage,
   getGroqUsage,
+  setBalance,
+  getBalance,
+  logDeduction,
+  getTotalDeducted,
 } from "../../lib/kv.js";
 import { generateInvoiceCode } from "../../lib/invoice.js";
 import { buildReference } from "../../lib/reference.js";
@@ -135,6 +139,35 @@ export default async function handler(req, res) {
   // ---- /stats ----
   if (text === "/stats") {
     await handleStatsCommand(chatId);
+    return res.status(200).json({ ok: true });
+  }
+
+  // ---- /setbalance 5000 ----
+  const setBalanceMatch = text.match(/^\/setbalance\s+([\d,.]+)$/i);
+  if (setBalanceMatch) {
+    const amount = Number(setBalanceMatch[1].replace(/,/g, ""));
+    await setBalance(amount);
+    await sendTelegramMessage(chatId, `✅ Balance set to *KES ${amount.toLocaleString()}*`);
+    return res.status(200).json({ ok: true });
+  }
+
+  // ---- /deduct 500 groceries ----
+  const deductMatch = text.match(/^\/deduct\s+([\d,.]+)(?:\s+(.+))?$/i);
+  if (deductMatch) {
+    const amount = Number(deductMatch[1].replace(/,/g, ""));
+    const reason = deductMatch[2] || "Not specified";
+    await logDeduction(amount, reason);
+    const newBalance = await getBalance();
+    await sendTelegramMessage(
+      chatId,
+      `📤 *Deduction logged*\nKES ${amount.toLocaleString()} — ${reason}\n\nBalance: *KES ${newBalance.toLocaleString()}*`
+    );
+    return res.status(200).json({ ok: true });
+  }
+
+  // ---- /balance ----
+  if (text === "/balance") {
+    await handleBalanceCommand(chatId);
     return res.status(200).json({ ok: true });
   }
 
@@ -335,6 +368,21 @@ export default async function handler(req, res) {
     } else if (parsed.intent === "help") {
       await handleHelpCommand(chatId);
       replyForHistory = "[Showed help menu]";
+    } else if (parsed.intent === "deduct" && validAmount) {
+      const reason = parsed.description || "Not specified";
+      await logDeduction(parsed.amount, reason);
+      const newBalance = await getBalance();
+      const msg = `📤 *Deduction logged*\nKES ${Number(parsed.amount).toLocaleString()} — ${reason}\n\nBalance: *KES ${newBalance.toLocaleString()}*`;
+      await sendTelegramMessage(chatId, msg);
+      replyForHistory = `[Logged deduction of KES ${parsed.amount}]`;
+    } else if (parsed.intent === "setbalance" && validAmount) {
+      await setBalance(Number(parsed.amount));
+      const msg = `✅ Balance set to *KES ${Number(parsed.amount).toLocaleString()}*`;
+      await sendTelegramMessage(chatId, msg);
+      replyForHistory = `[Set balance to KES ${parsed.amount}]`;
+    } else if (parsed.intent === "balance") {
+      await handleBalanceCommand(chatId);
+      replyForHistory = "[Showed balance]";
     } else {
       const msg = parsed.reply || "Not sure what you meant — try /help.";
       await sendTelegramMessage(chatId, msg);
@@ -414,6 +462,11 @@ async function handleHelpCommand(chatId) {
       "*Reports*\n" +
       "`/today` — today's summary\n" +
       "`/stats` — all-time totals & streak\n\n" +
+      "*Bank Balance*\n" +
+      "`/balance` — current balance, total in/out\n" +
+      "`/setbalance <amount>` — set your starting balance\n" +
+      "`/deduct <amount> <reason>` — log money leaving your account\n" +
+      "_Income tracks automatically from every payment received._\n\n" +
       "*Refunds*\n" +
       "`/refund <code> <reason>` — log a manual refund note\n" +
       "`/refunds` — view refund notes\n\n" +
@@ -456,6 +509,20 @@ async function handleTodayCommand(chatId) {
       `❌ Failed: ${failed.length}\n` +
       `💰 Total collected: KES ${total.toLocaleString()}\n` +
       `🔥 Current streak: ${stats.streak} day${stats.streak === 1 ? "" : "s"}`
+  );
+}
+
+async function handleBalanceCommand(chatId) {
+  const balance = await getBalance();
+  const stats = await getStats();
+  const totalOut = await getTotalDeducted();
+  await sendTelegramMessage(
+    chatId,
+    `🏦 *Bank Balance*\n\n` +
+      `💰 Current balance: *KES ${balance.toLocaleString()}*\n\n` +
+      `⬆️ Total in: KES ${stats.total.toLocaleString()}\n` +
+      `⬇️ Total out: KES ${totalOut.toLocaleString()}\n\n` +
+      `_Balance updates automatically on every payment received. Log withdrawals with /deduct._`
   );
 }
 
