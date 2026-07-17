@@ -26,7 +26,15 @@ import {
   getBalance,
   logDeduction,
   getTotalDeducted,
+  getBiggestIn,
+  getBiggestOut,
+  getBalanceSnapshot,
+  saveBalanceSnapshot,
+  setSavingsGoal,
+  getSavingsGoal,
+  getRecentActivity,
 } from "../../lib/kv.js";
+import { kesToUsdt } from "../../lib/rates.js";
 import { generateInvoiceCode } from "../../lib/invoice.js";
 import { buildReference } from "../../lib/reference.js";
 import { parseIntent } from "../../lib/groq.js";
@@ -162,6 +170,15 @@ export default async function handler(req, res) {
       chatId,
       `📤 *Deduction logged*\nKES ${amount.toLocaleString()} — ${reason}\n\nBalance: *KES ${newBalance.toLocaleString()}*`
     );
+    return res.status(200).json({ ok: true });
+  }
+
+  // ---- /goal 10000 ----
+  const goalMatch = text.match(/^\/goal\s+([\d,.]+)$/i);
+  if (goalMatch) {
+    const amount = Number(goalMatch[1].replace(/,/g, ""));
+    await setSavingsGoal(amount);
+    await sendTelegramMessage(chatId, `🎯 Savings goal set to *KES ${amount.toLocaleString()}*`);
     return res.status(200).json({ ok: true });
   }
 
@@ -466,6 +483,7 @@ async function handleHelpCommand(chatId) {
       "`/balance` — current balance, total in/out\n" +
       "`/setbalance <amount>` — set your starting balance\n" +
       "`/deduct <amount> <reason>` — log money leaving your account\n" +
+      "`/goal <amount>` — set a savings target\n" +
       "_Income tracks automatically from every payment received._\n\n" +
       "*Refunds*\n" +
       "`/refund <code> <reason>` — log a manual refund note\n" +
@@ -523,19 +541,80 @@ async function handleBalanceCommand(chatId) {
   const bar = "🟩".repeat(filledBlocks) + "🟥".repeat(10 - filledBlocks);
   const inPct = Math.round(inRatio * 100);
 
+  // Masked card number - cosmetic only, deterministic from chatId so it stays consistent
+  const cardDigits = String(Math.abs(Number(chatId)) % 10000).padStart(4, "0");
+
+  // USDT equivalent
+  const usdt = await kesToUsdt(balance);
+  const usdtLine = usdt ? `≈ ${usdt} USDT\n` : "";
+
+  // Trend vs last snapshot (seeds itself on first check if none exists yet)
+  let trendLine = "";
+  const snapshot = await getBalanceSnapshot();
+  if (snapshot === null) {
+    await saveBalanceSnapshot(balance);
+    trendLine = "_📊 Trend tracking starts now — check back next week._\n";
+  } else if (snapshot > 0) {
+    const change = balance - snapshot;
+    const changePct = Math.round((change / snapshot) * 100);
+    const arrow = change > 0 ? "📈" : change < 0 ? "📉" : "➡️";
+    trendLine = `${arrow} ${change >= 0 ? "+" : ""}${changePct}% vs last week\n`;
+  }
+
+  // Biggest transactions
+  const biggestIn = await getBiggestIn();
+  const biggestOutData = await getBiggestOut();
+  let biggestLine = "";
+  if (biggestIn > 0 || biggestOutData.amount > 0) {
+    biggestLine = `\n🏆 *Biggest In:* KES ${biggestIn.toLocaleString()}\n`;
+    if (biggestOutData.amount > 0) {
+      biggestLine += `🏆 *Biggest Out:* KES ${biggestOutData.amount.toLocaleString()} (${biggestOutData.reason})\n`;
+    }
+  }
+
+  // Savings goal
+  let goalLine = "";
+  const goal = await getSavingsGoal();
+  if (goal && goal > 0) {
+    const goalPct = Math.min(Math.round((balance / goal) * 100), 100);
+    const goalFilled = Math.round((goalPct / 100) * 10);
+    const goalBar = "🟦".repeat(goalFilled) + "⬜".repeat(10 - goalFilled);
+    goalLine = `\n🎯 *Goal:* KES ${goal.toLocaleString()}\n${goalBar} ${goalPct}%\n`;
+  }
+
+  // Recent activity feed
+  const activity = await getRecentActivity(4);
+  let activityLine = "";
+  if (activity.length > 0) {
+    const lines = activity.map((a) => {
+      const icon = a.type === "in" ? "⬆️" : "⬇️";
+      const sign = a.type === "in" ? "+" : "-";
+      return `${icon} ${sign}KES ${Number(a.amount).toLocaleString()} — ${a.label}`;
+    });
+    activityLine = `\n📋 *Recent Activity*\n${lines.join("\n")}\n`;
+  }
+
   await sendTelegramMessage(
     chatId,
     `🏦 *WHALE_SYS BANK CARD*\n` +
-      `━━━━━━━━━━━━━━━━━━━\n\n` +
-      `💳 *KES ${balance.toLocaleString()}*\n` +
-      `_current balance_\n\n` +
+      `━━━━━━━━━━━━━━━━━━━\n` +
+      `💳 \`•••• •••• •••• ${cardDigits}\`\n\n` +
+      `*KES ${balance.toLocaleString()}*\n` +
+      `${usdtLine}` +
+      `_current balance_\n` +
+      `${trendLine}` +
       `━━━━━━━━━━━━━━━━━━━\n` +
       `⬆️ In    \`KES ${stats.total.toLocaleString()}\`\n` +
       `⬇️ Out   \`KES ${totalOut.toLocaleString()}\`\n` +
       `━━━━━━━━━━━━━━━━━━━\n\n` +
       `${bar}\n` +
-      `${inPct}% in · ${100 - inPct}% out\n\n` +
-      `_Updates automatically on every payment. Use /deduct to log spending._`
+      `${inPct}% in · ${100 - inPct}% out\n` +
+      `${biggestLine}` +
+      `${goalLine}` +
+      `${activityLine}` +
+      `\n_Updates automatically on every payment. /deduct to log spending, /goal to set a target._`
+  );
+}
   );
 }
 

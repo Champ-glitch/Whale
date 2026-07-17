@@ -3,7 +3,7 @@
 // randoms can't trigger it by guessing the URL.
 
 import { sendTelegramMessage } from "../../../lib/telegram.js";
-import { listInvoices } from "../../../lib/kv.js";
+import { listInvoices, getBalance, saveBalanceSnapshot } from "../../../lib/kv.js";
 
 export default async function handler(req, res) {
   const authHeader = req.headers.authorization;
@@ -36,6 +36,10 @@ export default async function handler(req, res) {
         `📈 Success rate: ${successRate}% ${bar}`
     );
   }
+
+  // Snapshot current balance so next week's /balance can show a trend comparison.
+  const currentBalance = await getBalance();
+  await saveBalanceSnapshot(currentBalance);
 
   return res.status(200).json({ ok: true, sent: !!owner });
 }
