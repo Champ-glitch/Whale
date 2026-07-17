@@ -615,8 +615,6 @@ async function handleBalanceCommand(chatId) {
       `\n_Updates automatically on every payment. /deduct to log spending, /goal to set a target._`
   );
 }
-  );
-}
 
 async function handleStatsCommand(chatId) {
   const stats = await getStats();
