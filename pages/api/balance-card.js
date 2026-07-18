@@ -129,6 +129,9 @@ export default async function handler(req) {
     {
       width: 600,
       height: 380,
+      headers: {
+        "Cache-Control": "no-store, max-age=0",
+      },
     }
   );
 }

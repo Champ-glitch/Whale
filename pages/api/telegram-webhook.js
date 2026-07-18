@@ -584,7 +584,10 @@ async function handleBalanceCommand(chatId, host) {
     `\n\n_Updates automatically on every payment. /deduct to log spending, /goal to set a target._`;
 
   const secret = process.env.BALANCE_CARD_SECRET;
-  const cardUrl = `https://${host}/api/balance-card${secret ? `?key=${secret}` : ""}`;
+  const params = new URLSearchParams();
+  if (secret) params.set("key", secret);
+  params.set("t", Date.now()); // cache-bust: forces Telegram to fetch a fresh image, not a cached one
+  const cardUrl = `https://${host}/api/balance-card?${params.toString()}`;
 
   await sendTelegramPhoto(chatId, cardUrl, caption);
 }
