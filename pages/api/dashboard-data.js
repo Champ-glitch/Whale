@@ -8,16 +8,16 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const { initData } = req.body || {};
-  const user = verifyTelegramInitData(initData, process.env.TELEGRAM_BOT_TOKEN);
+  const { initData, key } = req.body || {};
 
-  if (!user) {
-    return res.status(401).json({ error: "This page can only be opened from the WHALE_SYS Telegram bot." });
-  }
-
+  const telegramUser = verifyTelegramInitData(initData, process.env.TELEGRAM_BOT_TOKEN);
   const ownerChatId = process.env.OWNER_CHAT_ID;
-  if (ownerChatId && String(user.id) !== String(ownerChatId)) {
-    return res.status(403).json({ error: "Not authorized." });
+  const telegramAuthOk = telegramUser && (!ownerChatId || String(telegramUser.id) === String(ownerChatId));
+
+  const secretAuthOk = process.env.DASHBOARD_SECRET && key === process.env.DASHBOARD_SECRET;
+
+  if (!telegramAuthOk && !secretAuthOk) {
+    return res.status(401).json({ error: "Not authorized." });
   }
 
   const balance = await getBalance();

@@ -115,7 +115,7 @@ export default async function handler(req, res) {
   // ---- /dashboard ----
   if (text === "/dashboard") {
     await sendTelegramMessage(chatId, "📊 Tap below to open your dashboard:", {
-      inline_keyboard: [[{ text: "📊 Open Dashboard", web_app: { url: `https://${req.headers.host}` } }]],
+      inline_keyboard: [[{ text: "📊 Open Dashboard", url: `https://${req.headers.host}?key=${process.env.DASHBOARD_SECRET || ""}` }]],
     });
     return res.status(200).json({ ok: true });
   }
@@ -130,7 +130,7 @@ export default async function handler(req, res) {
   if (text === "/start") {
     const menuWithDashboard = {
       inline_keyboard: [
-        [{ text: "📊 Open Dashboard", web_app: { url: `https://${req.headers.host}` } }],
+        [{ text: "📊 Open Dashboard", url: `https://${req.headers.host}?key=${process.env.DASHBOARD_SECRET || ""}` }],
         ...MAIN_MENU_BUTTONS.inline_keyboard,
       ],
     };

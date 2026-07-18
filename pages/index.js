@@ -8,17 +8,11 @@ export default function Dashboard() {
   const [data, setData] = useState(null);
 
   useEffect(() => {
-    function tryInit() {
-      const tg = window.Telegram && window.Telegram.WebApp;
-      if (!tg || !tg.initData) return false;
-
-      tg.ready();
-      tg.expand();
-
+    function fetchData(body) {
       fetch("/api/dashboard-data", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ initData: tg.initData }),
+        body: JSON.stringify(body),
       })
         .then(async (res) => ({ ok: res.ok, json: await res.json() }))
         .then(({ ok, json }) => {
@@ -30,8 +24,26 @@ export default function Dashboard() {
           setStatus("ready");
         })
         .catch(() => setStatus("unauthorized"));
+    }
 
-      return true;
+    function tryInit() {
+      const tg = window.Telegram && window.Telegram.WebApp;
+      if (tg && tg.initData) {
+        tg.ready();
+        tg.expand();
+        fetchData({ initData: tg.initData });
+        return true;
+      }
+
+      // Fallback: a secret key in the URL, for clients that don't support
+      // proper Mini App launches (e.g. some third-party Telegram clients).
+      const urlKey = new URLSearchParams(window.location.search).get("key");
+      if (urlKey) {
+        fetchData({ key: urlKey });
+        return true;
+      }
+
+      return false;
     }
 
     if (tryInit()) return;
