@@ -112,6 +112,14 @@ export default async function handler(req, res) {
   // ---- Command shortcuts: /p -> /pay, /l -> /link ----
   text = text.replace(/^\/p(\s|$)/i, "/pay$1").replace(/^\/l(\s|$)/i, "/link$1");
 
+  // ---- /dashboard ----
+  if (text === "/dashboard") {
+    await sendTelegramMessage(chatId, "📊 Tap below to open your dashboard:", {
+      inline_keyboard: [[{ text: "📊 Open Dashboard", web_app: { url: `https://${req.headers.host}` } }]],
+    });
+    return res.status(200).json({ ok: true });
+  }
+
   // ---- /help ----
   if (text === "/help") {
     await handleHelpCommand(chatId);
@@ -120,6 +128,12 @@ export default async function handler(req, res) {
 
   // ---- /start ----
   if (text === "/start") {
+    const menuWithDashboard = {
+      inline_keyboard: [
+        [{ text: "📊 Open Dashboard", web_app: { url: `https://${req.headers.host}` } }],
+        ...MAIN_MENU_BUTTONS.inline_keyboard,
+      ],
+    };
     await sendTelegramMessage(
       chatId,
       `👋 ${timeGreeting()}, Whale.\n\n` +
@@ -127,7 +141,7 @@ export default async function handler(req, res) {
         "Quick start:\n" +
         "`/pay <amount> <phone>` — send an STK push\n" +
         "`/link <amount> <description>` — create a payment link",
-      MAIN_MENU_BUTTONS
+      menuWithDashboard
     );
     return res.status(200).json({ ok: true });
   }
@@ -465,6 +479,7 @@ async function handleHelpCommand(chatId) {
     "📖 *WHALE_SYS Pay Bot — Commands*\n\n" +
       "*Just talk to me too*\n" +
       "You don't need exact commands — try \"send 500 to john\" or \"how'd I do today\" and I'll figure it out.\n\n" +
+      "`/dashboard` — open your visual dashboard\n\n" +
       "*Payments*\n" +
       "`/pay <amount> <phone>` — send an STK push (alias: `/p`)\n" +
       "`/pay <amount> @nickname` — pay a saved contact\n" +
