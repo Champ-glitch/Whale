@@ -1,5 +1,5 @@
 import { initiateSTKPush } from "../../lib/payhero.js";
-import { sendTelegramMessage, answerCallbackQuery } from "../../lib/telegram.js";
+import { sendTelegramMessage, answerCallbackQuery, sendTelegramPhoto } from "../../lib/telegram.js";
 import {
   saveInvoice,
   listInvoices,
@@ -184,7 +184,7 @@ export default async function handler(req, res) {
 
   // ---- /balance ----
   if (text === "/balance") {
-    await handleBalanceCommand(chatId);
+    await handleBalanceCommand(chatId, req.headers.host);
     return res.status(200).json({ ok: true });
   }
 
@@ -398,7 +398,7 @@ export default async function handler(req, res) {
       await sendTelegramMessage(chatId, msg);
       replyForHistory = `[Set balance to KES ${parsed.amount}]`;
     } else if (parsed.intent === "balance") {
-      await handleBalanceCommand(chatId);
+      await handleBalanceCommand(chatId, req.headers.host);
       replyForHistory = "[Showed balance]";
     } else {
       const msg = parsed.reply || "Not sure what you meant — try /help.";
@@ -530,35 +530,19 @@ async function handleTodayCommand(chatId) {
   );
 }
 
-async function handleBalanceCommand(chatId) {
+async function handleBalanceCommand(chatId, host) {
   const balance = await getBalance();
   const stats = await getStats();
   const totalOut = await getTotalDeducted();
 
   const totalMoved = stats.total + totalOut;
   const inRatio = totalMoved > 0 ? stats.total / totalMoved : 1;
-  const filledBlocks = Math.round(inRatio * 10);
-  const bar = "🟩".repeat(filledBlocks) + "🟥".repeat(10 - filledBlocks);
   const inPct = Math.round(inRatio * 100);
 
-  // Masked card number - cosmetic only, deterministic from chatId so it stays consistent
-  const cardDigits = String(Math.abs(Number(chatId)) % 10000).padStart(4, "0");
-
-  // USDT equivalent
-  const usdt = await kesToUsdt(balance);
-  const usdtLine = usdt ? `≈ ${usdt} USDT\n` : "";
-
-  // Trend vs last snapshot (seeds itself on first check if none exists yet)
-  let trendLine = "";
+  // Trend snapshot seeding (still needed here so first-ever check starts tracking)
   const snapshot = await getBalanceSnapshot();
   if (snapshot === null) {
     await saveBalanceSnapshot(balance);
-    trendLine = "_📊 Trend tracking starts now — check back next week._\n";
-  } else if (snapshot > 0) {
-    const change = balance - snapshot;
-    const changePct = Math.round((change / snapshot) * 100);
-    const arrow = change > 0 ? "📈" : change < 0 ? "📉" : "➡️";
-    trendLine = `${arrow} ${change >= 0 ? "+" : ""}${changePct}% vs last week\n`;
   }
 
   // Biggest transactions
@@ -566,9 +550,9 @@ async function handleBalanceCommand(chatId) {
   const biggestOutData = await getBiggestOut();
   let biggestLine = "";
   if (biggestIn > 0 || biggestOutData.amount > 0) {
-    biggestLine = `\n🏆 *Biggest In:* KES ${biggestIn.toLocaleString()}\n`;
+    biggestLine = `\n🏆 *Biggest In:* KES ${biggestIn.toLocaleString()}`;
     if (biggestOutData.amount > 0) {
-      biggestLine += `🏆 *Biggest Out:* KES ${biggestOutData.amount.toLocaleString()} (${biggestOutData.reason})\n`;
+      biggestLine += `\n🏆 *Biggest Out:* KES ${biggestOutData.amount.toLocaleString()} (${biggestOutData.reason})`;
     }
   }
 
@@ -579,7 +563,7 @@ async function handleBalanceCommand(chatId) {
     const goalPct = Math.min(Math.round((balance / goal) * 100), 100);
     const goalFilled = Math.round((goalPct / 100) * 10);
     const goalBar = "🟦".repeat(goalFilled) + "⬜".repeat(10 - goalFilled);
-    goalLine = `\n🎯 *Goal:* KES ${goal.toLocaleString()}\n${goalBar} ${goalPct}%\n`;
+    goalLine = `\n\n🎯 *Goal:* KES ${goal.toLocaleString()}\n${goalBar} ${goalPct}%`;
   }
 
   // Recent activity feed
@@ -591,29 +575,18 @@ async function handleBalanceCommand(chatId) {
       const sign = a.type === "in" ? "+" : "-";
       return `${icon} ${sign}KES ${Number(a.amount).toLocaleString()} — ${a.label}`;
     });
-    activityLine = `\n📋 *Recent Activity*\n${lines.join("\n")}\n`;
+    activityLine = `\n\n📋 *Recent Activity*\n${lines.join("\n")}`;
   }
 
-  await sendTelegramMessage(
-    chatId,
-    `🏦 *WHALE_SYS BANK CARD*\n` +
-      `━━━━━━━━━━━━━━━━━━━\n` +
-      `💳 \`•••• •••• •••• ${cardDigits}\`\n\n` +
-      `*KES ${balance.toLocaleString()}*\n` +
-      `${usdtLine}` +
-      `_current balance_\n` +
-      `${trendLine}` +
-      `━━━━━━━━━━━━━━━━━━━\n` +
-      `⬆️ In    \`KES ${stats.total.toLocaleString()}\`\n` +
-      `⬇️ Out   \`KES ${totalOut.toLocaleString()}\`\n` +
-      `━━━━━━━━━━━━━━━━━━━\n\n` +
-      `${bar}\n` +
-      `${inPct}% in · ${100 - inPct}% out\n` +
-      `${biggestLine}` +
-      `${goalLine}` +
-      `${activityLine}` +
-      `\n_Updates automatically on every payment. /deduct to log spending, /goal to set a target._`
-  );
+  const caption =
+    `⬆️ In: KES ${stats.total.toLocaleString()}  ⬇️ Out: KES ${totalOut.toLocaleString()} (${inPct}% in)` +
+    `${biggestLine}${goalLine}${activityLine}` +
+    `\n\n_Updates automatically on every payment. /deduct to log spending, /goal to set a target._`;
+
+  const secret = process.env.BALANCE_CARD_SECRET;
+  const cardUrl = `https://${host}/api/balance-card${secret ? `?key=${secret}` : ""}`;
+
+  await sendTelegramPhoto(chatId, cardUrl, caption);
 }
 
 async function handleStatsCommand(chatId) {
