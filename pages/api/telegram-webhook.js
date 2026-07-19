@@ -345,7 +345,7 @@ export default async function handler(req, res) {
   // ---- /registeragent <secret_key> ----
   const registerAgentMatch = text.match(/^\/registeragent\s+(\S+)$/i);
   if (registerAgentMatch) {
-    const secretKey = registerAgentMatch[1];
+    const secretKey = registerAgentMatch[1].replace(/^<|>$/g, "").trim();
     try {
       const result = await registerAgent(secretKey);
       const agentId = result.agent_id || result.id || result.data?.agent_id;
