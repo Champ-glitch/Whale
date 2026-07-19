@@ -38,7 +38,16 @@ import { kesToUsdt } from "../../lib/rates.js";
 import { generateInvoiceCode } from "../../lib/invoice.js";
 import { buildReference } from "../../lib/reference.js";
 import { getExchangeRate, getAccountDetail, payoutKES, onrampKES, getTransactionHistory, refundTransaction, isSupportedChainAsset } from "../../lib/pretium.js";
-import { savePretiumTx, listPretiumTx, savePendingCrypto, getPendingCrypto, clearPendingCrypto } from "../../lib/kv.js";
+import { savePretiumTx, listPretiumTx, savePendingCrypto, getPendingCrypto, clearPendingCrypto, saveAgentId, getAgentId } from "../../lib/kv.js";
+import {
+  registerAgent,
+  getAgent,
+  createAgentSpendPolicy,
+  getAgentBalance,
+  agentCreateStablecoinOrder,
+  agentCreateFiatOrder,
+  getAgentFiatOrderStatus,
+} from "../../lib/pretium-mcp.js";
 import { parseIntent } from "../../lib/groq.js";
 
 const LARGE_AMOUNT_THRESHOLD = 10000; // KES - amounts above this need confirmation
@@ -333,6 +342,155 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true });
   }
 
+  // ---- /registeragent <secret_key> ----
+  const registerAgentMatch = text.match(/^\/registeragent\s+(\S+)$/i);
+  if (registerAgentMatch) {
+    const secretKey = registerAgentMatch[1];
+    try {
+      const result = await registerAgent(secretKey);
+      const agentId = result.agent_id || result.id || result.data?.agent_id;
+      if (!agentId) {
+        await sendTelegramMessage(chatId, `⚠️ Registered, but couldn't find an agent_id in the response. Raw: \`${JSON.stringify(result).slice(0, 300)}\``);
+      } else {
+        await saveAgentId(agentId);
+        await sendTelegramMessage(chatId, `✅ *Agent registered!*\nAgent ID: \`${agentId}\`\n\nSaved — you won't need to register again.`);
+      }
+    } catch (err) {
+      await sendTelegramMessage(chatId, `❌ Registration failed: ${err.message}`);
+    }
+    return res.status(200).json({ ok: true });
+  }
+
+  // ---- /agentinfo ----
+  if (text === "/agentinfo") {
+    const agentId = await getAgentId();
+    if (!agentId) {
+      await sendTelegramMessage(chatId, "No agent registered yet. Use `/registeragent <secret_key>` first.");
+      return res.status(200).json({ ok: true });
+    }
+    try {
+      const info = await getAgent(agentId);
+      await sendTelegramMessage(chatId, `🤖 *Agent Info*\n\n\`${JSON.stringify(info, null, 2).slice(0, 1000)}\``);
+    } catch (err) {
+      await sendTelegramMessage(chatId, `❌ Couldn't fetch agent info: ${err.message}`);
+    }
+    return res.status(200).json({ ok: true });
+  }
+
+  // ---- /agentpolicy <fiat|stablecoin> <max_amount> [currency] [daily] [monthly] ----
+  const agentPolicyMatch = text.match(/^\/agentpolicy\s+(fiat|stablecoin)\s+([\d.]+)(?:\s+(\w+))?(?:\s+([\d.]+))?(?:\s+([\d.]+))?$/i);
+  if (agentPolicyMatch) {
+    const [, assetType, maxAmount, currencyCode, dailyLimit, monthlyLimit] = agentPolicyMatch;
+    const agentId = await getAgentId();
+    if (!agentId) {
+      await sendTelegramMessage(chatId, "No agent registered yet. Use `/registeragent <secret_key>` first.");
+      return res.status(200).json({ ok: true });
+    }
+    try {
+      await createAgentSpendPolicy({ agentId, assetType, currencyCode, maxAutoApproveAmount: maxAmount, dailyLimit, monthlyLimit });
+      await sendTelegramMessage(
+        chatId,
+        `✅ *Spend policy set*\nType: ${assetType}\nAuto-approve up to: ${maxAmount}${currencyCode ? ` ${currencyCode}` : ""}` +
+          (dailyLimit ? `\nDaily limit: ${dailyLimit}` : "") +
+          (monthlyLimit ? `\nMonthly limit: ${monthlyLimit}` : "")
+      );
+    } catch (err) {
+      await sendTelegramMessage(chatId, `❌ Couldn't set policy: ${err.message}`);
+    }
+    return res.status(200).json({ ok: true });
+  }
+
+  // ---- /agentbalance <fiat|stablecoin> [currency_or_asset] [network] ----
+  const agentBalanceMatch = text.match(/^\/agentbalance\s+(fiat|stablecoin)(?:\s+(\w+))?(?:\s+(\w+))?$/i);
+  if (agentBalanceMatch) {
+    const [, assetType, second, network] = agentBalanceMatch;
+    const agentId = await getAgentId();
+    if (!agentId) {
+      await sendTelegramMessage(chatId, "No agent registered yet. Use `/registeragent <secret_key>` first.");
+      return res.status(200).json({ ok: true });
+    }
+    try {
+      const params = { agentId, assetType };
+      if (assetType.toLowerCase() === "fiat") params.currencyCode = second;
+      else {
+        params.assetCode = second;
+        params.network = network;
+      }
+      const balance = await getAgentBalance(params);
+      await sendTelegramMessage(chatId, `💰 *Agent Balance*\n\n\`${JSON.stringify(balance, null, 2).slice(0, 800)}\``);
+    } catch (err) {
+      await sendTelegramMessage(chatId, `❌ Couldn't fetch balance: ${err.message}`);
+    }
+    return res.status(200).json({ ok: true });
+  }
+
+  // ---- /agentpayout <amount> <currency> <mobile|paybill|bank_transfer|buy_goods> <destination> [mobile_network] ----
+  const agentPayoutMatch = text.match(/^\/agentpayout\s+([\d.]+)\s+(\w+)\s+(mobile|paybill|bank_transfer|buy_goods)\s+(\S+)(?:\s+(\w+))?$/i);
+  if (agentPayoutMatch) {
+    const [, amount, currencyCode, type, destination, mobileNetwork] = agentPayoutMatch;
+    const agentId = await getAgentId();
+    if (!agentId) {
+      await sendTelegramMessage(chatId, "No agent registered yet. Use `/registeragent <secret_key>` first.");
+      return res.status(200).json({ ok: true });
+    }
+    await savePendingCrypto(chatId, {
+      action: "agentpayout",
+      agentId,
+      amount,
+      currencyCode: currencyCode.toUpperCase(),
+      type,
+      destination,
+      mobileNetwork: mobileNetwork || "mpesa",
+    });
+    await sendTelegramMessage(
+      chatId,
+      `⚠️ *Confirm Agent Payout*\n${currencyCode.toUpperCase()} ${amount} → ${destination}\nType: ${type}\n\nThis pays out directly from your agent's balance — no transaction hash needed. Reply with your PIN within 2 minutes to proceed.`
+    );
+    return res.status(200).json({ ok: true });
+  }
+
+  // ---- /agentsend <amount> <network> <address> [asset] ----
+  const agentSendMatch = text.match(/^\/agentsend\s+([\d.]+)\s+(celo|base|bnb)\s+(\S+)(?:\s+(\w+))?$/i);
+  if (agentSendMatch) {
+    const [, amount, network, address, assetCode] = agentSendMatch;
+    const agentId = await getAgentId();
+    if (!agentId) {
+      await sendTelegramMessage(chatId, "No agent registered yet. Use `/registeragent <secret_key>` first.");
+      return res.status(200).json({ ok: true });
+    }
+    await savePendingCrypto(chatId, {
+      action: "agentsend",
+      agentId,
+      amount,
+      network: network.toLowerCase(),
+      address,
+      assetCode: assetCode || "USDT",
+    });
+    await sendTelegramMessage(
+      chatId,
+      `⚠️ *Confirm Agent Stablecoin Send*\n${amount} ${assetCode || "USDT"} on ${network.toUpperCase()}\nTo: \`${address}\`\n\nReply with your PIN within 2 minutes to proceed.`
+    );
+    return res.status(200).json({ ok: true });
+  }
+
+  // ---- /agentstatus <reference> [currency] ----
+  const agentStatusMatch = text.match(/^\/agentstatus\s+(\S+)(?:\s+(\w+))?$/i);
+  if (agentStatusMatch) {
+    const [, reference, currencyCode] = agentStatusMatch;
+    const agentId = await getAgentId();
+    if (!agentId) {
+      await sendTelegramMessage(chatId, "No agent registered yet. Use `/registeragent <secret_key>` first.");
+      return res.status(200).json({ ok: true });
+    }
+    try {
+      const status = await getAgentFiatOrderStatus({ agentId, reference, currencyCode });
+      await sendTelegramMessage(chatId, `📋 *Order Status*\n\n\`${JSON.stringify(status, null, 2).slice(0, 800)}\``);
+    } catch (err) {
+      await sendTelegramMessage(chatId, `❌ Couldn't fetch status: ${err.message}`);
+    }
+    return res.status(200).json({ ok: true });
+  }
+
   // ---- /cryptorefund <chain> <txhash> ----
   const cryptoRefundMatch = text.match(/^\/cryptorefund\s+(\w+)\s+(\S+)$/i);
   if (cryptoRefundMatch) {
@@ -464,6 +622,10 @@ export default async function handler(req, res) {
         await executePayout(chatId, pendingCrypto, req.headers.host);
       } else if (pendingCrypto.action === "buycrypto") {
         await executeBuyCrypto(chatId, pendingCrypto, req.headers.host);
+      } else if (pendingCrypto.action === "agentpayout") {
+        await executeAgentPayout(chatId, pendingCrypto);
+      } else if (pendingCrypto.action === "agentsend") {
+        await executeAgentSend(chatId, pendingCrypto);
       }
       return res.status(200).json({ ok: true });
     } else if (/^yes$/i.test(text)) {
@@ -809,6 +971,43 @@ async function executeBuyCrypto(chatId, { amount, phone, chain, asset, wallet },
   }
 }
 
+async function executeAgentPayout(chatId, { agentId, amount, currencyCode, type, destination, mobileNetwork }) {
+  try {
+    const args = { agentId, amount, currencyCode, type };
+    if (type === "mobile" || type === "paybill" || type === "buy_goods") {
+      args.shortcode = destination;
+      if (type === "mobile") args.mobileNetwork = mobileNetwork;
+      if (type === "paybill") args.accountNumber = destination; // adjust if paybill needs separate account number
+    } else if (type === "bank_transfer") {
+      args.accountNumber = destination;
+    }
+
+    const result = await agentCreateFiatOrder(args);
+    const reference = result.reference || result.internal_reference_id || result.id || "unknown";
+
+    await sendTelegramMessage(
+      chatId,
+      `✅ *Agent payout sent*\n${currencyCode} ${amount} → ${destination}\nReference: \`${reference}\`\n\nCheck status anytime with \`/agentstatus ${reference}\``
+    );
+  } catch (err) {
+    console.error("Agent payout error:", err);
+    await sendTelegramMessage(chatId, `❌ Agent payout failed: ${err.message}`);
+  }
+}
+
+async function executeAgentSend(chatId, { agentId, amount, network, address, assetCode }) {
+  try {
+    const result = await agentCreateStablecoinOrder({ agentId, address, network, amount, assetCode });
+    await sendTelegramMessage(
+      chatId,
+      `✅ *Stablecoin sent from agent balance*\n${amount} ${assetCode} on ${network.toUpperCase()}\nTo: \`${address}\`\n\n\`${JSON.stringify(result).slice(0, 300)}\``
+    );
+  } catch (err) {
+    console.error("Agent send error:", err);
+    await sendTelegramMessage(chatId, `❌ Agent send failed: ${err.message}`);
+  }
+}
+
 async function handleHelpCommand(chatId) {
   await sendTelegramMessage(
     chatId,
@@ -848,6 +1047,14 @@ async function handleHelpCommand(chatId) {
       "`/cryptohistory` — recent crypto transactions\n" +
       "`/cryptorefund <chain> <txhash>` — refund a failed crypto transaction\n" +
       "_Supported chains: CELO, BASE, STELLAR, TRON, SCROLL, SOLANA, POLYGON, ETHEREUM, BNB_\n\n" +
+      "*Pretium Agent (MCP)*\n" +
+      "`/registeragent <secret_key>` — one-time, activates your agent\n" +
+      "`/agentinfo` — agent details\n" +
+      "`/agentpolicy <fiat|stablecoin> <max> [currency] [daily] [monthly]` — set spend limits\n" +
+      "`/agentbalance <fiat|stablecoin> [currency/asset] [network]` — check balance\n" +
+      "`/agentpayout <amount> <currency> <type> <destination> [network]` — withdraw to fiat, no tx hash needed\n" +
+      "`/agentsend <amount> <celo|base|bnb> <address> [asset]` — send stablecoin from agent balance\n" +
+      "`/agentstatus <reference> [currency]` — check a payout's status\n\n" +
       "*Safety*\n" +
       "Payments over KES 10,000 need a YES confirmation.\n" +
       "This bot only responds to your account.\n\n" +
