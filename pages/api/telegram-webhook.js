@@ -221,6 +221,44 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true });
   }
 
+  // ---- /deposit [chain] ----
+  const depositMatch = text.match(/^\/deposit(?:\s+(\w+))?$/i);
+  if (depositMatch) {
+    const requestedChain = depositMatch[1];
+    try {
+      const account = await getAccountDetail();
+      const networks = account.networks || [];
+
+      if (networks.length === 0) {
+        await sendTelegramMessage(chatId, "No network data returned from Pretium.");
+        return res.status(200).json({ ok: true });
+      }
+
+      if (requestedChain) {
+        const match = networks.find((n) => n.name?.toUpperCase() === requestedChain.toUpperCase());
+        if (!match) {
+          const available = networks.map((n) => n.name).join(", ");
+          await sendTelegramMessage(chatId, `❌ No network found matching "${requestedChain}".\nAvailable: ${available}`);
+          return res.status(200).json({ ok: true });
+        }
+        const assets = (match.assets || []).map((a) => a.name).join(", ");
+        await sendTelegramMessage(
+          chatId,
+          `📥 *${match.name} Deposit Address*\n\n\`${match.settlement_wallet_address}\`\n\nAccepted assets: ${assets || "n/a"}\n\n_Send only these assets on this network to this address._`
+        );
+      } else {
+        const lines = networks.map((n) => {
+          const assets = (n.assets || []).map((a) => a.name).join("/");
+          return `*${n.name}* (${assets})\n\`${n.settlement_wallet_address}\``;
+        });
+        await sendTelegramMessage(chatId, `📥 *All Deposit Addresses*\n\n${lines.join("\n\n")}`);
+      }
+    } catch (err) {
+      await sendTelegramMessage(chatId, `❌ Couldn't fetch deposit address: ${err.message}`);
+    }
+    return res.status(200).json({ ok: true });
+  }
+
   // ---- /cryptobalance ----
   if (text === "/cryptobalance") {
     try {
@@ -660,6 +698,7 @@ async function handleHelpCommand(chatId) {
       "*Crypto (Pretium)*\n" +
       "`/rate` — current KES exchange rate\n" +
       "`/cryptobalance` — Pretium account & wallet balances\n" +
+      "`/deposit <chain>` — get deposit address for one network (or leave blank for all)\n" +
       "`/payout <amount> <phone> <chain> <txhash>` — send stablecoin proceeds to M-Pesa\n" +
       "`/buycrypto <amount> <phone> <chain> <asset> <wallet>` — buy crypto with M-Pesa\n" +
       "`/cryptohistory` — recent crypto transactions\n" +
