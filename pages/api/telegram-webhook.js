@@ -37,6 +37,8 @@ import {
 import { kesToUsdt } from "../../lib/rates.js";
 import { generateInvoiceCode } from "../../lib/invoice.js";
 import { buildReference } from "../../lib/reference.js";
+import { getExchangeRate, getAccountDetail, payoutKES, onrampKES, getTransactionHistory, refundTransaction, isSupportedChainAsset } from "../../lib/pretium.js";
+import { savePretiumTx, listPretiumTx } from "../../lib/kv.js";
 import { parseIntent } from "../../lib/groq.js";
 
 const LARGE_AMOUNT_THRESHOLD = 10000; // KES - amounts above this need confirmation
@@ -199,6 +201,155 @@ export default async function handler(req, res) {
   // ---- /balance ----
   if (text === "/balance") {
     await handleBalanceCommand(chatId, req.headers.host);
+    return res.status(200).json({ ok: true });
+  }
+
+  // ---- /rate ----
+  if (text === "/rate") {
+    try {
+      const rate = await getExchangeRate("KES");
+      await sendTelegramMessage(
+        chatId,
+        `💱 *KES Exchange Rate*\n\nBuying: ${rate.buying_rate}\nSelling: ${rate.selling_rate}\nQuoted: ${rate.quoted_rate}`
+      );
+    } catch (err) {
+      await sendTelegramMessage(chatId, `❌ Couldn't fetch rate: ${err.message}`);
+    }
+    return res.status(200).json({ ok: true });
+  }
+
+  // ---- /cryptobalance ----
+  if (text === "/cryptobalance") {
+    try {
+      const account = await getAccountDetail();
+      const walletLines = (account.wallets || [])
+        .map((w) => `💰 ${w.currency}: ${Number(w.balance).toLocaleString()} (${w.country_name})`)
+        .join("\n");
+      await sendTelegramMessage(
+        chatId,
+        `🏦 *Pretium Account*\n\n${account.name || ""}\nStatus: ${account.status || "unknown"}\n\n${walletLines || "No wallet data returned."}`
+      );
+    } catch (err) {
+      await sendTelegramMessage(chatId, `❌ Couldn't fetch account: ${err.message}`);
+    }
+    return res.status(200).json({ ok: true });
+  }
+
+  // ---- /payout <amount> <destination> <chain> <txhash> ----
+  // Defaults: type=MOBILE, mobile_network=Safaricom (extend later for paybill/bank)
+  const payoutMatch = text.match(/^\/payout\s+(\d+)\s+(\+?\d{9,12})\s+(\w+)\s+(\S+)$/i);
+  if (payoutMatch) {
+    const [, amount, destination, chain, txHash] = payoutMatch;
+
+    if (!isSupportedChainAsset(chain, "USDT") && !isSupportedChainAsset(chain, "USDC")) {
+      await sendTelegramMessage(chatId, `❌ Unsupported chain: ${chain}. See /help for supported networks.`);
+      return res.status(200).json({ ok: true });
+    }
+
+    try {
+      const callbackUrl = `https://${req.headers.host}/api/public/pretium-webhook?s=${process.env.PRETIUM_WEBHOOK_SECRET}`;
+      const result = await payoutKES({
+        type: "MOBILE",
+        shortcode: destination,
+        amount,
+        mobileNetwork: "Safaricom",
+        chain: chain.toUpperCase(),
+        transactionHash: txHash,
+        callbackUrl,
+      });
+
+      const txCode = result.data?.transaction_code || result.data?.id || `unknown-${Date.now()}`;
+      await savePretiumTx(txCode, {
+        type: "payout",
+        amount: Number(amount),
+        destination,
+        chain: chain.toUpperCase(),
+        transactionHash: txHash,
+        status: "PENDING",
+        chatId,
+        createdAt: Date.now(),
+      });
+
+      await sendTelegramMessage(
+        chatId,
+        `⏳ *Payout initiated*\nKES ${amount} → ${destination}\nChain: ${chain.toUpperCase()}\nTracking: \`${txCode}\`\n\nWaiting for Pretium confirmation...`
+      );
+    } catch (err) {
+      await sendTelegramMessage(chatId, `❌ Payout failed: ${err.message}`);
+    }
+    return res.status(200).json({ ok: true });
+  }
+
+  // ---- /buycrypto <amount> <phone> <chain> <asset> <wallet> ----
+  const buyCryptoMatch = text.match(/^\/buycrypto\s+(\d+)\s+(\+?\d{9,12})\s+(\w+)\s+(\w+)\s+(\S+)$/i);
+  if (buyCryptoMatch) {
+    const [, amount, phone, chain, asset, wallet] = buyCryptoMatch;
+
+    if (!isSupportedChainAsset(chain, asset)) {
+      await sendTelegramMessage(chatId, `❌ ${asset.toUpperCase()} isn't supported on ${chain.toUpperCase()}. Check /help for valid combinations.`);
+      return res.status(200).json({ ok: true });
+    }
+
+    try {
+      const callbackUrl = `https://${req.headers.host}/api/public/pretium-webhook?s=${process.env.PRETIUM_WEBHOOK_SECRET}`;
+      const result = await onrampKES({
+        shortcode: phone,
+        amount,
+        mobileNetwork: "Safaricom",
+        chain: chain.toUpperCase(),
+        asset: asset.toUpperCase(),
+        address: wallet,
+        callbackUrl,
+      });
+
+      const txCode = result.data?.transaction_code || result.data?.id || `unknown-${Date.now()}`;
+      await savePretiumTx(txCode, {
+        type: "onramp",
+        amount: Number(amount),
+        phone,
+        chain: chain.toUpperCase(),
+        asset: asset.toUpperCase(),
+        wallet,
+        status: "PENDING",
+        chatId,
+        createdAt: Date.now(),
+      });
+
+      await sendTelegramMessage(
+        chatId,
+        `⏳ *STK sent for crypto purchase*\nKES ${amount} → ${asset.toUpperCase()} on ${chain.toUpperCase()}\nWallet: \`${wallet}\`\nTracking: \`${txCode}\`\n\nEnter your M-Pesa PIN, then wait for release confirmation.`
+      );
+    } catch (err) {
+      await sendTelegramMessage(chatId, `❌ Purchase failed: ${err.message}`);
+    }
+    return res.status(200).json({ ok: true });
+  }
+
+  // ---- /cryptohistory ----
+  if (text === "/cryptohistory") {
+    const txs = await listPretiumTx(10);
+    if (txs.length === 0) {
+      await sendTelegramMessage(chatId, "No crypto transactions logged yet.");
+      return res.status(200).json({ ok: true });
+    }
+    const lines = txs.map((tx) => {
+      const icon = tx.status === "COMPLETE" || tx.status === "RELEASED" ? "✅" : tx.status === "FAILED" ? "❌" : "⏳";
+      return `${icon} ${tx.type === "payout" ? "Payout" : "Buy"} KES ${tx.amount} — ${tx.status}`;
+    });
+    await sendTelegramMessage(chatId, `📋 *Recent Crypto Activity*\n\n${lines.join("\n")}`);
+    return res.status(200).json({ ok: true });
+  }
+
+  // ---- /cryptorefund <chain> <txhash> ----
+  const cryptoRefundMatch = text.match(/^\/cryptorefund\s+(\w+)\s+(\S+)$/i);
+  if (cryptoRefundMatch) {
+    const [, chain, txHash] = cryptoRefundMatch;
+    try {
+      await refundTransaction(chain.toUpperCase(), txHash);
+      await sendTelegramMessage(chatId, `✅ Refund requested for transaction \`${txHash}\` on ${chain.toUpperCase()}.`);
+    } catch (err) {
+      await sendTelegramMessage(chatId, `❌ Refund request failed: ${err.message}`);
+    }
     return res.status(200).json({ ok: true });
   }
 
@@ -503,6 +654,14 @@ async function handleHelpCommand(chatId) {
       "*Refunds*\n" +
       "`/refund <code> <reason>` — log a manual refund note\n" +
       "`/refunds` — view refund notes\n\n" +
+      "*Crypto (Pretium)*\n" +
+      "`/rate` — current KES exchange rate\n" +
+      "`/cryptobalance` — Pretium account & wallet balances\n" +
+      "`/payout <amount> <phone> <chain> <txhash>` — send stablecoin proceeds to M-Pesa\n" +
+      "`/buycrypto <amount> <phone> <chain> <asset> <wallet>` — buy crypto with M-Pesa\n" +
+      "`/cryptohistory` — recent crypto transactions\n" +
+      "`/cryptorefund <chain> <txhash>` — refund a failed crypto transaction\n" +
+      "_Supported chains: CELO, BASE, STELLAR, TRON, SCROLL, SOLANA, POLYGON, ETHEREUM, BNB_\n\n" +
       "*Safety*\n" +
       "Payments over KES 10,000 need a YES confirmation.\n" +
       "This bot only responds to your account.\n\n" +
