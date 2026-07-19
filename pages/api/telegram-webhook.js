@@ -294,7 +294,7 @@ export default async function handler(req, res) {
     await sendTelegramMessage(
       chatId,
       `⚠️ *Confirm Payout*\nKES ${amount} → ${destination}\nChain: ${chain.toUpperCase()}\nTx: \`${txHash}\`\n\n` +
-        `This sends real money out and can't be undone once confirmed. Reply *YES* within 2 minutes to proceed.`
+        `This sends real money out and can't be undone once confirmed. Reply with your PIN within 2 minutes to proceed.`
     );
     return res.status(200).json({ ok: true });
   }
@@ -313,7 +313,7 @@ export default async function handler(req, res) {
     await sendTelegramMessage(
       chatId,
       `⚠️ *Confirm Purchase*\nKES ${amount} → ${asset.toUpperCase()} on ${chain.toUpperCase()}\nWallet: \`${wallet}\`\n\n` +
-        `Reply *YES* within 2 minutes to trigger the M-Pesa prompt.`
+        `Reply with your PIN within 2 minutes to trigger the M-Pesa prompt.`
     );
     return res.status(200).json({ ok: true });
   }
@@ -454,10 +454,11 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true });
   }
 
-  // ---- Confirm a pending large payment or crypto action: user replies YES ----
-  if (/^yes$/i.test(text)) {
-    const pendingCrypto = await getPendingCrypto(chatId);
-    if (pendingCrypto) {
+  // ---- Crypto confirmation requires the actual PIN, not just "YES" ----
+  const pendingCrypto = await getPendingCrypto(chatId);
+  if (pendingCrypto) {
+    const pin = process.env.PRETIUM_PIN;
+    if (pin && text === pin) {
       await clearPendingCrypto(chatId);
       if (pendingCrypto.action === "payout") {
         await executePayout(chatId, pendingCrypto, req.headers.host);
@@ -465,8 +466,16 @@ export default async function handler(req, res) {
         await executeBuyCrypto(chatId, pendingCrypto, req.headers.host);
       }
       return res.status(200).json({ ok: true });
+    } else if (/^yes$/i.test(text)) {
+      await sendTelegramMessage(chatId, "🔒 Crypto actions need your PIN to confirm, not YES. Reply with your PIN.");
+      return res.status(200).json({ ok: true });
     }
+    // Any other message: fall through to normal processing, pending crypto
+    // just expires naturally after 2 minutes if never confirmed.
+  }
 
+  // ---- Confirm a pending large M-Pesa payment: user replies YES ----
+  if (/^yes$/i.test(text)) {
     const pending = await getPendingPay(chatId);
     if (pending) {
       await clearPendingPay(chatId);
@@ -642,7 +651,7 @@ export default async function handler(req, res) {
           chain: parsed.chain,
           txHash: parsed.txHash,
         });
-        const msg = `⚠️ *Confirm Payout*\nKES ${parsed.amount} → ${parsed.recipient}\nChain: ${parsed.chain.toUpperCase()}\nTx: \`${parsed.txHash}\`\n\nThis can't be undone. Reply *YES* within 2 minutes to proceed.`;
+        const msg = `⚠️ *Confirm Payout*\nKES ${parsed.amount} → ${parsed.recipient}\nChain: ${parsed.chain.toUpperCase()}\nTx: \`${parsed.txHash}\`\n\nThis can't be undone. Reply with your PIN within 2 minutes to proceed.`;
         await sendTelegramMessage(chatId, msg);
         replyForHistory = "[Awaiting payout confirmation]";
       }
@@ -660,7 +669,7 @@ export default async function handler(req, res) {
           asset: parsed.asset,
           wallet: parsed.wallet,
         });
-        const msg = `⚠️ *Confirm Purchase*\nKES ${parsed.amount} → ${parsed.asset.toUpperCase()} on ${parsed.chain.toUpperCase()}\nWallet: \`${parsed.wallet}\`\n\nReply *YES* within 2 minutes to trigger the M-Pesa prompt.`;
+        const msg = `⚠️ *Confirm Purchase*\nKES ${parsed.amount} → ${parsed.asset.toUpperCase()} on ${parsed.chain.toUpperCase()}\nWallet: \`${parsed.wallet}\`\n\nReply with your PIN within 2 minutes to trigger the M-Pesa prompt.`;
         await sendTelegramMessage(chatId, msg);
         replyForHistory = "[Awaiting purchase confirmation]";
       }
