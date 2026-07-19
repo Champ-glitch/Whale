@@ -208,9 +208,12 @@ export default async function handler(req, res) {
   if (text === "/rate") {
     try {
       const rate = await getExchangeRate("KES");
+      console.log("Pretium exchange-rate raw response:", JSON.stringify(rate));
+
+      const quotedLine = rate.quoted_rate !== undefined ? `\nQuoted: ${rate.quoted_rate}` : "";
       await sendTelegramMessage(
         chatId,
-        `💱 *KES Exchange Rate*\n\nBuying: ${rate.buying_rate}\nSelling: ${rate.selling_rate}\nQuoted: ${rate.quoted_rate}`
+        `💱 *KES Exchange Rate*\n\nBuying: ${rate.buying_rate}\nSelling: ${rate.selling_rate}${quotedLine}`
       );
     } catch (err) {
       await sendTelegramMessage(chatId, `❌ Couldn't fetch rate: ${err.message}`);
