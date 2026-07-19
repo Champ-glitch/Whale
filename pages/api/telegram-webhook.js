@@ -369,8 +369,22 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true });
     }
     try {
-      const info = await getAgent(agentId);
-      await sendTelegramMessage(chatId, `🤖 *Agent Info*\n\n\`${JSON.stringify(info, null, 2).slice(0, 1000)}\``);
+      const result = await getAgent(agentId);
+      const info = result.data || result;
+      const policies = info.spend_policies || [];
+      const policyLines = policies.length > 0
+        ? policies.map((p) => `  • ${p.asset_type}: auto-approve up to ${p.max_auto_approve_amount}`).join("\n")
+        : "  None set — use /agentpolicy to add one";
+
+      await sendTelegramMessage(
+        chatId,
+        `🤖 *${info.partner_name || "Agent"}*\n` +
+          `━━━━━━━━━━━━━━━━━━━\n\n` +
+          `🆔 \`${info.agent_identity || agentId}\`\n` +
+          `💳 Wallet: \`${info.agent_erc20_wallet || "n/a"}\`\n` +
+          `📅 Created: ${info.created_at ? new Date(info.created_at).toLocaleDateString() : "n/a"}\n\n` +
+          `*Spend Policies*\n${policyLines}`
+      );
     } catch (err) {
       await sendTelegramMessage(chatId, `❌ Couldn't fetch agent info: ${err.message}`);
     }
@@ -416,8 +430,26 @@ export default async function handler(req, res) {
         params.assetCode = second;
         params.network = network;
       }
-      const balance = await getAgentBalance(params);
-      await sendTelegramMessage(chatId, `💰 *Agent Balance*\n\n\`${JSON.stringify(balance, null, 2).slice(0, 800)}\``);
+      const result = await getAgentBalance(params);
+      const data = result.data || result;
+
+      // Try common field names for the actual balance value - we haven't
+      // seen a complete response yet, so stay defensive here.
+      const balanceValue = data.balance ?? data.amount ?? data.available_balance ?? null;
+      const unit = assetType.toLowerCase() === "fiat" ? data.currency_code : data.asset_code;
+
+      if (balanceValue !== null) {
+        await sendTelegramMessage(
+          chatId,
+          `💰 *Agent Balance*\n\n` +
+            `${assetType === "fiat" ? "💵" : "🪙"} *${Number(balanceValue).toLocaleString()} ${unit || ""}*\n` +
+            (data.network ? `Network: ${data.network}\n` : "") +
+            `\n_Agent: ${data.agent_id || agentId}_`
+        );
+      } else {
+        // Balance field name didn't match our guesses - show raw so nothing's hidden
+        await sendTelegramMessage(chatId, `💰 *Agent Balance*\n\n\`${JSON.stringify(data, null, 2).slice(0, 800)}\``);
+      }
     } catch (err) {
       await sendTelegramMessage(chatId, `❌ Couldn't fetch balance: ${err.message}`);
     }
