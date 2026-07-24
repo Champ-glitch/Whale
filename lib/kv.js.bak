@@ -199,7 +199,7 @@ export async function clearPendingReset(chatId) {
 // Wipes invoices, nicknames, stats, refund notes, and pending states.
 // Does NOT touch rate limit counters - those are system safety, not user data.
 export async function resetAll() {
-  const prefixes = ["invoice:", "nickname:", "stats:", "refund:", "pendingpay:", "failcount:", "pendingreset:", "deduction:", "split:"];
+  const prefixes = ["invoice:", "nickname:", "stats:", "refund:", "pendingpay:", "failcount:", "pendingreset:", "deduction:"];
   let deletedCount = 0;
   for (const prefix of prefixes) {
     const keys = await kvCommand(["KEYS", `${prefix}*`]);
@@ -398,83 +398,6 @@ export async function getPendingCrypto(chatId) {
 export async function clearPendingCrypto(chatId) {
   await kvCommand(["DEL", `pendingcrypto:${chatId}`]);
 }
-
-// ---- Two-account split system (main + savings) ----
-// Main balance reuses the existing stats:balance key (unchanged behavior).
-// Savings is a new key. Pending split is a running total of 40% shares
-// waiting on "WHALE approve" - it does NOT leave main until approved.
-
-const SPLIT_RATIO = 0.4; // 40% of every deposit is earmarked for savings
-
-export async function getSavingsBalance() {
-  const value = await kvCommand(["GET", "stats:balance_savings"]);
-  return Number(value || 0);
-}
-
-export async function setSavingsBalance(amount) {
-  await kvCommand(["SET", "stats:balance_savings", amount]);
-}
-
-export async function getPendingSplitTotal() {
-  const value = await kvCommand(["GET", "split:pending_total"]);
-  return Number(value || 0);
-}
-
-// Adds this deposit's 40% share to the pending pool and logs it for
-// transparency. Returns the new running pending total.
-export async function addPendingSplit(amount, meta = {}) {
-  const total = await kvCommand(["INCRBYFLOAT", "split:pending_total", amount]);
-  const key = `split:log:${Date.now()}`;
-  await kvCommand([
-    "SET",
-    key,
-    JSON.stringify({ amount: Number(amount), ...meta, at: Date.now() }),
-    "EX",
-    60 * 60 * 24 * 30,
-  ]);
-  return Number(total);
-}
-
-export async function listPendingSplitLog(limit = 10) {
-  const keys = await kvCommand(["KEYS", "split:log:*"]);
-  if (!keys || keys.length === 0) return [];
-  const items = [];
-  for (const key of keys) {
-    const value = await kvCommand(["GET", key]);
-    if (value) items.push(JSON.parse(value));
-  }
-  items.sort((a, b) => b.at - a.at);
-  return items.slice(0, limit);
-}
-
-// "WHALE approve" - moves the whole pending pool from main to savings.
-// Returns the amount that was moved (0 if nothing was pending).
-export async function approvePendingSplit() {
-  const pending = await getPendingSplitTotal();
-  if (pending <= 0) return 0;
-  await kvCommand(["INCRBYFLOAT", "stats:balance", -pending]);
-  await kvCommand(["INCRBYFLOAT", "stats:balance_savings", pending]);
-  await kvCommand(["SET", "split:pending_total", 0]);
-  const keys = await kvCommand(["KEYS", "split:log:*"]);
-  if (keys && keys.length > 0) {
-    for (const key of keys) await kvCommand(["DEL", key]);
-  }
-  return pending;
-}
-
-export async function deductFromSavings(amount, reason) {
-  await kvCommand(["INCRBYFLOAT", "stats:balance_savings", -Number(amount)]);
-  const key = `deduction:savings:${Date.now()}`;
-  await kvCommand([
-    "SET",
-    key,
-    JSON.stringify({ amount: Number(amount), reason: reason || "Not specified", account: "savings", at: Date.now() }),
-    "EX",
-    60 * 60 * 24 * 90,
-  ]);
-}
-
-export { SPLIT_RATIO };
 
 // ---- Pretium Agent (MCP) - persistent, no TTL ----
 export async function saveAgentId(agentId) {

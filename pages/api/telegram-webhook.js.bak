@@ -33,10 +33,6 @@ import {
   setSavingsGoal,
   getSavingsGoal,
   getRecentActivity,
-  getSavingsBalance,
-  getPendingSplitTotal,
-  approvePendingSplit,
-  deductFromSavings,
 } from "../../lib/kv.js";
 import { kesToUsdt } from "../../lib/rates.js";
 import { generateInvoiceCode } from "../../lib/invoice.js";
@@ -124,22 +120,6 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true });
   }
 
-if (/^whale approve$/i.test(text)) {
-  const pending = await getPendingSplitTotal();
-  if (pending <= 0) {
-    await sendTelegramMessage(chatId, "✅ No pending savings transfer right now.");
-    return res.status(200).json({ ok: true });
-  }
-  const moved = await approvePendingSplit();
-  const savings = await getSavingsBalance();
-  const main = await getBalance();
-  await sendTelegramMessage(
-    chatId,
-    `✅ *Transferred to Savings*\nKES ${moved.toLocaleString()} moved.\n\n💰 Main: KES ${main.toLocaleString()}\n🏦 Savings: KES ${savings.toLocaleString()}`
-  );
-  return res.status(200).json({ ok: true });
-}
-
   // ---- Command shortcuts: /p -> /pay, /l -> /link ----
   text = text.replace(/^\/p(\s|$)/i, "/pay$1").replace(/^\/l(\s|$)/i, "/link$1");
 
@@ -205,23 +185,6 @@ if (/^whale approve$/i.test(text)) {
   }
 
   // ---- /deduct 500 groceries ----
-  const deductAccountMatch = text.match(/^\/deduct\s+(main|savings)\s+([\d,.]+)(?:\s+(.+))?$/i);
-if (deductAccountMatch) {
-  const [, account, amtStr, reason] = deductAccountMatch;
-  const amount = Number(amtStr.replace(/,/g, ""));
-  const reasonText = reason || "Not specified";
-  if (account.toLowerCase() === "savings") {
-    await deductFromSavings(amount, reasonText);
-    const newSavings = await getSavingsBalance();
-    await sendTelegramMessage(chatId, `📤 *Savings deduction logged*\nKES ${amount.toLocaleString()} — ${reasonText}\n\nSavings: *KES ${newSavings.toLocaleString()}*`);
-  } else {
-    await logDeduction(amount, reasonText);
-    const newBalance = await getBalance();
-    await sendTelegramMessage(chatId, `📤 *Main deduction logged*\nKES ${amount.toLocaleString()} — ${reasonText}\n\nMain: *KES ${newBalance.toLocaleString()}*`);
-  }
-  return res.status(200).json({ ok: true });
-}
-
   const deductMatch = text.match(/^\/deduct\s+([\d,.]+)(?:\s+(.+))?$/i);
   if (deductMatch) {
     const amount = Number(deductMatch[1].replace(/,/g, ""));
@@ -1168,8 +1131,6 @@ async function handleTodayCommand(chatId) {
 
 async function handleBalanceCommand(chatId, host) {
   const balance = await getBalance();
-  const savings = await getSavingsBalance();
-  const pendingSplit = await getPendingSplitTotal();
   const stats = await getStats();
   const totalOut = await getTotalDeducted();
 
@@ -1194,30 +1155,14 @@ async function handleBalanceCommand(chatId, host) {
     }
   }
 
-  // Main vs Savings split bar
-  const totalAssets = balance + savings;
-  let splitBarLine = "";
-  if (totalAssets > 0) {
-    const savingsSplitPct = Math.round((savings / totalAssets) * 100);
-    const savingsFilled = Math.round((savingsSplitPct / 100) * 10);
-    const splitBar = "🟢".repeat(savingsFilled) + "⚪".repeat(10 - savingsFilled);
-    splitBarLine = `\n\n💼 *Main vs Savings*\n${splitBar} ${savingsSplitPct}% in Savings`;
-  }
-
-  // Savings goal (progress now tracks the SAVINGS balance, not main)
+  // Savings goal
   let goalLine = "";
   const goal = await getSavingsGoal();
   if (goal && goal > 0) {
-    const goalPct = Math.min(Math.round((savings / goal) * 100), 100);
+    const goalPct = Math.min(Math.round((balance / goal) * 100), 100);
     const goalFilled = Math.round((goalPct / 100) * 10);
     const goalBar = "🟦".repeat(goalFilled) + "⬜".repeat(10 - goalFilled);
     goalLine = `\n\n🎯 *Goal:* KES ${goal.toLocaleString()}\n${goalBar} ${goalPct}%`;
-  }
-
-  // Pending savings transfer awaiting "WHALE approve"
-  let pendingLine = "";
-  if (pendingSplit > 0) {
-    pendingLine = `\n\n⏳ *Pending Savings Transfer:* KES ${pendingSplit.toLocaleString()}\nReply *WHALE approve* to move it.`;
   }
 
   // Recent activity feed
@@ -1233,15 +1178,14 @@ async function handleBalanceCommand(chatId, host) {
   }
 
   const caption =
-    `💰 Main: KES ${balance.toLocaleString()}   🏦 Savings: KES ${savings.toLocaleString()}\n` +
-    `⬆️In: KES ${stats.total.toLocaleString()}   ⬇️Out: KES ${totalOut.toLocaleString()} (${inPct}% in)` +
-    `${splitBarLine}${biggestLine}${goalLine}${pendingLine}${activityLine}` +
-    `\n\n_Every deposit auto-splits 60/40. /deduct main|savings <amount> to log spending, /goal to set a savings target._`;
+    `⬆️ In: KES ${stats.total.toLocaleString()}  ⬇️ Out: KES ${totalOut.toLocaleString()} (${inPct}% in)` +
+    `${biggestLine}${goalLine}${activityLine}` +
+    `\n\n_Updates automatically on every payment. /deduct to log spending, /goal to set a target._`;
 
   const secret = process.env.BALANCE_CARD_SECRET;
   const params = new URLSearchParams();
   if (secret) params.set("key", secret);
-  params.set("t", Date.now()); // cache-bust: force Telegram to fetch a fresh image, not a cached one
+  params.set("t", Date.now()); // cache-bust: forces Telegram to fetch a fresh image, not a cached one
   const cardUrl = `https://${host}/api/balance-card?${params.toString()}`;
 
   await sendTelegramPhoto(chatId, cardUrl, caption);
