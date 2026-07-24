@@ -7,10 +7,6 @@ import {
   recordSuccessStats,
   addPendingSplit,
   getPendingSplitTotal,
-  getAutoApprove,
-  approvePendingSplit,
-  getSavingsBalance,
-  getBalance,
 } from "../../lib/kv.js";
 
 const SPLIT_RATIO = 0.4; // 40% of every deposit is earmarked for savings
@@ -27,22 +23,6 @@ async function triggerSplit(chatId, amount, meta = {}) {
   const mainShare = Math.round((amt - savingsShare) * 100) / 100;
   const pendingTotal = await addPendingSplit(savingsShare, meta);
 
-  const autoApprove = await getAutoApprove();
-  if (autoApprove) {
-    const moved = await approvePendingSplit();
-    const savings = await getSavingsBalance();
-    const main = await getBalance();
-    await sendTelegramMessage(
-      chatId,
-      `🔀 *Auto-Split (auto-approved)*\n` +
-        `KES ${amt.toLocaleString()} received\n` +
-        `💰 60% stays in Main: KES ${mainShare.toLocaleString()}\n` +
-        `🏦 40% → Savings: KES ${savingsShare.toLocaleString()} (moved automatically)\n\n` +
-        `💰 Main: KES ${main.toLocaleString()}   🏦 Savings: KES ${savings.toLocaleString()}`
-    );
-    return;
-  }
-
   await sendTelegramMessage(
     chatId,
     `🔀 *Auto-Split*\n` +
@@ -50,7 +30,7 @@ async function triggerSplit(chatId, amount, meta = {}) {
       `💰 60% stays in Main: KES ${mainShare.toLocaleString()}\n` +
       `🏦 40% → Savings: KES ${savingsShare.toLocaleString()}\n\n` +
       `⏳ Pending savings transfer: *KES ${pendingTotal.toLocaleString()}*\n` +
-      `Reply *WHALE approve* to move it, or /autoapprove on to skip this step.`
+      `Reply *WHALE approve* to move it.`
   );
 }
 

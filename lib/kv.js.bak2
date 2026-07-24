@@ -199,7 +199,7 @@ export async function clearPendingReset(chatId) {
 // Wipes invoices, nicknames, stats, refund notes, and pending states.
 // Does NOT touch rate limit counters - those are system safety, not user data.
 export async function resetAll() {
-  const prefixes = ["invoice:", "nickname:", "stats:", "refund:", "pendingpay:", "failcount:", "pendingreset:", "deduction:", "split:", "transfer:", "category_spent:", "weekly_saved:"];
+  const prefixes = ["invoice:", "nickname:", "stats:", "refund:", "pendingpay:", "failcount:", "pendingreset:", "deduction:", "split:"];
   let deletedCount = 0;
   for (const prefix of prefixes) {
     const keys = await kvCommand(["KEYS", `${prefix}*`]);
@@ -475,92 +475,6 @@ export async function deductFromSavings(amount, reason) {
 }
 
 export { SPLIT_RATIO };
-// ---- Feature: Auto-approve (skip "WHALE approve", split moves instantly) ----
-export async function setAutoApprove(enabled) {
-  await kvCommand(["SET", "autoapprove:main", enabled ? "true" : "false"]);
-}
-
-export async function getAutoApprove() {
-  const value = await kvCommand(["GET", "autoapprove:main"]);
-  return value === "true";
-}
-
-// ---- Feature: Weekly savings report ----
-// Week key = the Sunday that starts the current week (UTC), e.g. "2026-07-19".
-// Using a real date instead of a week number avoids ambiguity across years.
-function getWeekKey(date = new Date()) {
-  const d = new Date(date);
-  const day = d.getUTCDay(); // 0 = Sunday
-  d.setUTCDate(d.getUTCDate() - day);
-  d.setUTCHours(0, 0, 0, 0);
-  return d.toISOString().split("T")[0];
-}
-
-export async function addWeeklySaved(amount) {
-  const key = `weekly_saved:${getWeekKey()}`;
-  await kvCommand(["INCRBYFLOAT", key, amount]);
-  await kvCommand(["EXPIRE", key, 60 * 60 * 24 * 90]); // 90 days of history is plenty
-}
-
-export async function getWeeklySaved() {
-  const key = `weekly_saved:${getWeekKey()}`;
-  const value = await kvCommand(["GET", key]);
-  return Number(value || 0);
-}
-
-export function getDaysElapsedInWeek() {
-  const day = new Date().getUTCDay(); // 0 (Sun) .. 6 (Sat)
-  return day + 1;
-}
-
-// ---- Feature: Smart spending categories ----
-// Category = the /deduct reason text itself, lowercased. Deductions already
-// show up in /balance's recent activity via the existing deduction log -
-// this just adds a running per-category total for /report's top 3.
-export async function trackCategorySpend(category, amount) {
-  const clean = (category || "uncategorized").trim().toLowerCase().slice(0, 40);
-  await kvCommand(["INCRBYFLOAT", `category_spent:${clean}`, amount]);
-}
-
-export async function getTopCategories(limit = 3) {
-  const keys = await kvCommand(["KEYS", "category_spent:*"]);
-  if (!keys || keys.length === 0) return [];
-  const items = [];
-  for (const key of keys) {
-    const value = await kvCommand(["GET", key]);
-    if (value) {
-      items.push({ category: key.replace("category_spent:", ""), amount: Number(value) });
-    }
-  }
-  items.sort((a, b) => b.amount - a.amount);
-  return items.slice(0, limit);
-}
-
-// ---- Feature: Manual transfer, Main -> Savings ----
-export async function transferToSavings(amount) {
-  await kvCommand(["INCRBYFLOAT", "stats:balance", -Number(amount)]);
-  await kvCommand(["INCRBYFLOAT", "stats:balance_savings", Number(amount)]);
-  const key = `transfer:${Date.now()}`;
-  await kvCommand([
-    "SET",
-    key,
-    JSON.stringify({ amount: Number(amount), note: `Transferred KES ${amount} from Main to Savings`, at: Date.now() }),
-    "EX",
-    60 * 60 * 24 * 90,
-  ]);
-}
-
-// ---- Feature: /setsavings - manual override, does NOT touch main or the split ----
-export async function logSavingsSet(amount) {
-  const key = `transfer:${Date.now()}`;
-  await kvCommand([
-    "SET",
-    key,
-    JSON.stringify({ amount: Number(amount), note: `Savings balance manually set to KES ${amount}`, at: Date.now() }),
-    "EX",
-    60 * 60 * 24 * 90,
-  ]);
-}
 
 // ---- Pretium Agent (MCP) - persistent, no TTL ----
 export async function saveAgentId(agentId) {

@@ -37,14 +37,6 @@ import {
   getPendingSplitTotal,
   approvePendingSplit,
   deductFromSavings,
-  setAutoApprove,
-  getWeeklySaved,
-  getDaysElapsedInWeek,
-  trackCategorySpend,
-  getTopCategories,
-  transferToSavings,
-  setSavingsBalance,
-  logSavingsSet,
 } from "../../lib/kv.js";
 import { kesToUsdt } from "../../lib/rates.js";
 import { generateInvoiceCode } from "../../lib/invoice.js";
@@ -148,45 +140,6 @@ if (/^whale approve$/i.test(text)) {
   return res.status(200).json({ ok: true });
 }
 
-if (/^\/autoapprove\s+(on|off)$/i.test(text)) {
-  const [, state] = text.match(/^\/autoapprove\s+(on|off)$/i);
-  const enabled = state.toLowerCase() === "on";
-  await setAutoApprove(enabled);
-  await sendTelegramMessage(
-    chatId,
-    enabled
-      ? "✅ Auto-approve is *ON*. Every deposit's 40% share moves to Savings automatically — no need to reply WHALE approve."
-      : "✅ Auto-approve is *OFF*. Reply *WHALE approve* to move each pending split into Savings."
-  );
-  return res.status(200).json({ ok: true });
-}
-
-if (text === "/report") {
-  const weeklySaved = await getWeeklySaved();
-  const goal = await getSavingsGoal();
-  const savings = await getSavingsBalance();
-  const daysElapsed = getDaysElapsedInWeek();
-  const avgPerDay = daysElapsed > 0 ? Math.round(weeklySaved / daysElapsed) : 0;
-  const goalPct = goal && goal > 0 ? Math.min(Math.round((savings / goal) * 100), 100) : null;
-  const topCategories = await getTopCategories(3);
-
-  let categoryLines = "";
-  if (topCategories.length > 0) {
-    const lines = topCategories.map((c, i) => `${i + 1}. ${c.category} — KES ${c.amount.toLocaleString()}`);
-    categoryLines = `\n\n*Top Categories*\n${lines.join("\n")}`;
-  }
-
-  await sendTelegramMessage(
-    chatId,
-    `📊 *Weekly Report*\n\n` +
-      `💰 Saved: KES ${weeklySaved.toLocaleString()} this week\n` +
-      (goalPct !== null ? `🎯 Goal Progress: ${goalPct}%\n` : "") +
-      `📈 Avg/day: KES ${avgPerDay.toLocaleString()}` +
-      categoryLines
-  );
-  return res.status(200).json({ ok: true });
-}
-
   // ---- Command shortcuts: /p -> /pay, /l -> /link ----
   text = text.replace(/^\/p(\s|$)/i, "/pay$1").replace(/^\/l(\s|$)/i, "/link$1");
 
@@ -259,14 +212,11 @@ if (deductAccountMatch) {
   const reasonText = reason || "Not specified";
   if (account.toLowerCase() === "savings") {
     await deductFromSavings(amount, reasonText);
-    await trackCategorySpend(reasonText, amount);
     const newSavings = await getSavingsBalance();
     await sendTelegramMessage(chatId, `📤 *Savings deduction logged*\nKES ${amount.toLocaleString()} — ${reasonText}\n\nSavings: *KES ${newSavings.toLocaleString()}*`);
   } else {
     await logDeduction(amount, reasonText);
     const newBalance = await getBalance();
-    await trackCategorySpend(reasonText, amount);
-    await checkLowBalanceAlert(chatId, newBalance);
     await sendTelegramMessage(chatId, `📤 *Main deduction logged*\nKES ${amount.toLocaleString()} — ${reasonText}\n\nMain: *KES ${newBalance.toLocaleString()}*`);
   }
   return res.status(200).json({ ok: true });
@@ -277,9 +227,7 @@ if (deductAccountMatch) {
     const amount = Number(deductMatch[1].replace(/,/g, ""));
     const reason = deductMatch[2] || "Not specified";
     await logDeduction(amount, reason);
-    await trackCategorySpend(reason, amount);
     const newBalance = await getBalance();
-    await checkLowBalanceAlert(chatId, newBalance);
     await sendTelegramMessage(
       chatId,
       `📤 *Deduction logged*\nKES ${amount.toLocaleString()} — ${reason}\n\nBalance: *KES ${newBalance.toLocaleString()}*`
@@ -287,61 +235,6 @@ if (deductAccountMatch) {
     return res.status(200).json({ ok: true });
   }
 
-const transferMatch = text.match(/^\/transfer\s+([\d,.]+)$/i);
-if (transferMatch) {
-  const amount = Number(transferMatch[1].replace(/,/g, ""));
-  const mainBalance = await getBalance();
-
-  if (mainBalance < amount) {
-    await sendTelegramMessage(chatId, `❌ Not enough in Main. You have KES ${mainBalance.toLocaleString()}`);
-    return res.status(200).json({ ok: true });
-  }
-
-  await transferToSavings(amount);
-  const main = await getBalance();
-  const savings = await getSavingsBalance();
-  const total = main + savings;
-  const savingsPercent = total > 0 ? Math.round((savings / total) * 100) : 0;
-  const goalAmount = await getSavingsGoal();
-  const goalPercent = goalAmount && goalAmount > 0 ? Math.min(100, Math.round((savings / goalAmount) * 100)) : 0;
-
-  await sendTelegramMessage(
-    chatId,
-    `📦 *Transfer Complete*\n` +
-      `\`KES ${amount.toLocaleString()}\` moved from *Main* → *Savings*\n\n` +
-      `*Main:* KES ${main.toLocaleString()}\n` +
-      `*Savings:* KES ${savings.toLocaleString()}\n` +
-      `*Total:* KES ${total.toLocaleString()}\n\n` +
-      `*Discipline:* ${savingsPercent}% in Savings 🟢\n` +
-      `*Goal:* ${goalPercent}% of ${goalAmount ? goalAmount.toLocaleString() : 0}`
-  );
-  return res.status(200).json({ ok: true });
-}
-
-const setSavingsMatch = text.match(/^\/setsavings\s+([\d,.]+)$/i);
-if (setSavingsMatch) {
-  const amount = Number(setSavingsMatch[1].replace(/,/g, ""));
-  await setSavingsBalance(amount);
-  await logSavingsSet(amount);
-
-  const main = await getBalance();
-  const savings = await getSavingsBalance();
-  const total = main + savings;
-  const savingsPercent = total > 0 ? Math.round((savings / total) * 100) : 0;
-  const goalAmount = await getSavingsGoal();
-  const goalPercent = goalAmount && goalAmount > 0 ? Math.min(100, Math.round((savings / goalAmount) * 100)) : 0;
-
-  await sendTelegramMessage(
-    chatId,
-    `✅ *Savings Balance Set*\n` +
-      `*Savings:* KES ${savings.toLocaleString()}\n` +
-      `*Main:* KES ${main.toLocaleString()}\n` +
-      `*Total:* KES ${total.toLocaleString()}\n\n` +
-      `*Discipline:* ${savingsPercent}% in Savings 🟢\n` +
-      `*Goal:* ${goalPercent}% of ${goalAmount ? goalAmount.toLocaleString() : 0}`
-  );
-  return res.status(200).json({ ok: true });
-}
   // ---- /goal 10000 ----
   const goalMatch = text.match(/^\/goal\s+([\d,.]+)$/i);
   if (goalMatch) {
@@ -1184,12 +1077,6 @@ async function executeAgentSend(chatId, { agentId, amount, network, address, ass
   }
 }
 
-async function checkLowBalanceAlert(chatId, mainBalance) {
-  if (mainBalance < 100) {
-    await sendTelegramMessage(chatId, `⚠️ Low Main Balance: KES ${mainBalance.toLocaleString()}. Top up?`);
-  }
-}
-
 async function handleHelpCommand(chatId) {
   await sendTelegramMessage(
     chatId,
@@ -1216,8 +1103,6 @@ async function handleHelpCommand(chatId) {
       "`/setbalance <amount>` — set your starting balance\n" +
       "`/deduct <amount> <reason>` — log money leaving your account\n" +
       "`/goal <amount>` — set a savings target\n" +
-            "`/transfer <amount>` - Move money from Main to Savings\n" +
-      "`/setsavings <amount>` - Manually set Savings balance\n" +
       "_Income tracks automatically from every payment received._\n\n" +
       "*Refunds*\n" +
       "`/refund <code> <reason>` — log a manual refund note\n" +
