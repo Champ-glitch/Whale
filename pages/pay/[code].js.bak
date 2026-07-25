@@ -123,7 +123,7 @@ async function generateReceiptCanvas(invoice, code) {
   ctx.textAlign = "left";
   ctx.fillStyle = "#0f172a";
   ctx.font = "bold 22px sans-serif";
-  ctx.fillText("WHALE ENTERPRISE", pad + 64, 84);
+  ctx.fillText("WHALE_SYS", pad + 64, 84);
   ctx.fillStyle = "#64748b";
   ctx.font = "12px sans-serif";
   ctx.fillText("Self-Taught. Self-Made.", pad + 64, 102);
@@ -195,7 +195,7 @@ async function generateReceiptCanvas(invoice, code) {
   ctx.textAlign = "center";
   ctx.fillStyle = "#334155";
   ctx.font = "italic 15px sans-serif";
-  ctx.fillText("Thank you for trusting WHALE ENTERPRISE 🐋", W / 2, H - 90);
+  ctx.fillText("Thank you for trusting WHALE_SYS 🐋", W / 2, H - 90);
   ctx.fillStyle = "#94a3b8";
   ctx.font = "11px sans-serif";
   ctx.fillText("This receipt is auto-generated and does not require a signature.", W / 2, H - 64);
@@ -206,17 +206,17 @@ async function generateReceiptCanvas(invoice, code) {
 async function downloadReceiptImage(invoice, code) {
   const canvas = await generateReceiptCanvas(invoice, code);
   const link = document.createElement("a");
-  link.download = `Whale-Enterprise-receipt-${code}.png`;
+  link.download = `WHALE_SYS-receipt-${code}.png`;
   link.href = canvas.toDataURL("image/png");
   link.click();
 }
 
 async function sendReceiptToWhatsApp(invoice, code) {
   const canvas = await generateReceiptCanvas(invoice, code);
-  const text = `Whale Enterprise payment receipt — KES ${invoice.amount} for ${invoice.description} (Invoice ${code})`;
+  const text = `WHALE_SYS payment receipt — KES ${invoice.amount} for ${invoice.description} (Invoice ${code})`;
 
   canvas.toBlob(async (blob) => {
-    const file = new File([blob], `Whale-Enterprise-receipt-${code}.png`, { type: "image/png" });
+    const file = new File([blob], `WHALE_SYS-receipt-${code}.png`, { type: "image/png" });
 
     if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
       try {
@@ -237,14 +237,14 @@ function downloadICS(invoice, code) {
     "BEGIN:VCALENDAR\nVERSION:2.0\nBEGIN:VEVENT\n" +
     `UID:${code}@whale-sys\n` +
     `DTSTAMP:${dt}\nDTSTART:${dt}\n` +
-    `SUMMARY:Whale Enterprise Payment Received - KES ${invoice.amount}\n` +
+    `SUMMARY:WHALE_SYS Payment Received - KES ${invoice.amount}\n` +
     `DESCRIPTION:${invoice.description} (Invoice ${code})\n` +
     "END:VEVENT\nEND:VCALENDAR";
   const blob = new Blob([ics], { type: "text/calendar" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `Whale-Enterprise-${code}.ics`;
+  link.download = `WHALE_SYS-${code}.ics`;
   link.click();
   URL.revokeObjectURL(url);
 }
@@ -412,7 +412,7 @@ export default function PayPage({ invoice, code }) {
   }
 
   function shareExperience() {
-    const text = `Just paid via Whale Enterprise Pay — fast, secure M-Pesa checkout.`;
+    const text = `Just paid via WHALE_SYS Pay — fast, secure M-Pesa checkout.`;
     if (navigator.share) {
       navigator.share({ text, url: TIKTOK_URL }).catch(() => {});
     } else {
@@ -438,7 +438,7 @@ export default function PayPage({ invoice, code }) {
             <div className="topRow">
               <div className="brandMark">
                 <img src={WHALE_IMG} alt="" width="22" height="22" />
-                <span>WHALE ENTERPRISE</span>
+                <span>WHALE_SYS</span>
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M9 12l2 2 4-4" stroke="#00CED1" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/><circle cx="12" cy="12" r="10" stroke="#00CED1" strokeWidth="1.5"/></svg>
               </div>
             </div>
@@ -504,7 +504,7 @@ export default function PayPage({ invoice, code }) {
               <p className="stateSub">Check your phone and enter your M-Pesa PIN.</p>
 
               <div className="verifyContext">
-                <p>Paying <strong>KES {invoice.amount.toLocaleString()}</strong> to Whale Enterprise</p>
+                <p>Paying <strong>KES {invoice.amount.toLocaleString()}</strong> to WHALE_SYS</p>
                 {stage === "verifying" && <p>Prompt sent to +254 {phone}</p>}
               </div>
 
@@ -549,7 +549,7 @@ export default function PayPage({ invoice, code }) {
             <>
               <div className="brandHeader">
                 <p className="brandName">
-                  whale enterprise
+                  whale_sys
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" style={{ marginLeft: 8 }}>
                     <path d="M9 12l2 2 4-4" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
@@ -559,7 +559,7 @@ export default function PayPage({ invoice, code }) {
 
               <div className="divider" />
 
-              <p className="recipientLine">You're paying <strong>Whale Enterprise</strong></p>
+              <p className="recipientLine">You're paying <strong>WHALE_SYS</strong></p>
 
               <div className="amountSection">
                 <p className="amountValue" onClick={() => copyToClipboard(`KES ${invoice.amount}`, "Amount")} role="button" tabIndex={0}>
@@ -861,7 +861,7 @@ function FAQAccordion({ code, whatsapp }) {
   const faqs = [
     {
       q: "Is this payment secure?",
-      a: "Yes. Payments are processed directly through Safaricom M-Pesa via PayHero, a licensed payment processor. Whale Enterprise never sees or stores your M-Pesa PIN.",
+      a: "Yes. Payments are processed directly through Safaricom M-Pesa via PayHero, a licensed payment processor. WHALE_SYS never sees or stores your M-Pesa PIN.",
     },
     {
       q: "I didn't get a prompt on my phone",
@@ -1031,12 +1031,12 @@ function Shell({ children, title, description }) {
   return (
     <>
       <Head>
-        <title>{title ? `${title} | Whale Enterprise` : "Whale Enterprise Pay"}</title>
+        <title>{title ? `${title} | WHALE_SYS` : "WHALE_SYS Pay"}</title>
         <link rel="icon" href={FAVICON} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@1,700&display=swap" rel="stylesheet" />
-        <meta property="og:title" content={title || "Whale Enterprise Pay"} />
-        <meta property="og:description" content={description || "Fast, secure M-Pesa checkout by Whale Enterprise."} />
+        <meta property="og:title" content={title || "WHALE_SYS Pay"} />
+        <meta property="og:description" content={description || "Fast, secure M-Pesa checkout by WHALE_SYS."} />
       </Head>
       <div className="page">
         <div className="card">
@@ -1044,7 +1044,7 @@ function Shell({ children, title, description }) {
           {children}
         </div>
         <div className="pageFooter">
-          <p>© {new Date().getFullYear()} Whale Enterprise</p>
+          <p>© {new Date().getFullYear()} WHALE_SYS</p>
           <p>Self-Taught. Self-Made.</p>
         </div>
       </div>
