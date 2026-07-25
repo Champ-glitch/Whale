@@ -1349,7 +1349,6 @@ async function handleBalanceCommand(chatId, host) {
 
   const caption =
     `💰 Main: KES ${balance.toLocaleString()}   🏦 Savings: KES ${savings.toLocaleString()}\n` +
-    `💎 Net Worth: KES ${totalAssets.toLocaleString()}\n` +
     `⬆️In: KES ${stats.total.toLocaleString()}   ⬇️Out: KES ${totalOut.toLocaleString()} (${inPct}% in)` +
     `${splitBarLine}${biggestLine}${goalLine}${pendingLine}${activityLine}` +
     `\n\n_Every deposit auto-splits 60/40. /deduct main|savings <amount> to log spending, /goal to set a savings target._`;
