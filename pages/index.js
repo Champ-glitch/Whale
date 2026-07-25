@@ -66,7 +66,16 @@ export default function Dashboard() {
   return (
     <>
       <Head>
-        <title>WHALE_SYS Dashboard</title>
+        <title>WHALE_SYS — Personal Finance & Payments on Telegram</title>
+        <meta
+          name="description"
+          content="A personal M-Pesa payments and savings tool that runs entirely inside Telegram — payment links, STK push, automatic 60/40 savings split, and crypto rails. Built by @Whale_sys."
+        />
+        <meta property="og:title" content="WHALE_SYS — Personal Finance & Payments on Telegram" />
+        <meta
+          property="og:description"
+          content="M-Pesa payment links, STK push, automatic 60/40 savings split, and crypto rails — all inside Telegram. DM @Whale_sys to see it."
+        />
         <script src="https://telegram.org/js/telegram-web-app.js"></script>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@1,700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
@@ -80,10 +89,32 @@ export default function Dashboard() {
         )}
 
         {status === "unauthorized" && (
-          <div className="center">
-            <p className="lockIcon">🔒</p>
-            <p className="lockTitle">Telegram Only</p>
-            <p className="lockSub">This dashboard can only be opened from inside the WHALE_SYS Telegram bot.</p>
+          <div className="explainer">
+            <div className="brandRow center">
+              <img src={WHALE_IMG} alt="" width="24" height="24" />
+              <span>whale_sys</span>
+            </div>
+
+            <p className="explainerTitle">A personal finance &amp; payments tool, built entirely for Telegram.</p>
+
+            <p className="explainerBody">
+              WHALE_SYS sends M-Pesa payment links and STK push requests,
+              automatically splits every deposit 60/40 into Main and Savings
+              accounts, tracks spending by category, and connects to crypto
+              rails for converting to fiat — all from inside a single
+              Telegram chat, no app required.
+            </p>
+
+            <p className="explainerSub">This dashboard is private and only opens from inside the bot.</p>
+
+            <a
+              className="ctaBtn"
+              href="https://t.me/Whale_sys"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              💬 DM @Whale_sys on Telegram to see it
+            </a>
           </div>
         )}
 
@@ -167,6 +198,49 @@ export default function Dashboard() {
         .lockIcon { font-size: 40px; margin-bottom: 12px; }
         .lockTitle { color: #fff; font-size: 18px; font-weight: 700; margin-bottom: 8px; }
         .lockSub { color: #64748b; font-size: 13px; max-width: 280px; }
+
+        .explainer {
+          max-width: 420px;
+          margin: 0 auto;
+          min-height: 90vh;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          text-align: center;
+          padding: 20px;
+        }
+        .brandRow.center { justify-content: center; margin-bottom: 24px; }
+        .explainerTitle {
+          color: #fff;
+          font-size: 21px;
+          font-weight: 700;
+          line-height: 1.35;
+          margin-bottom: 16px;
+        }
+        .explainerBody {
+          color: #94a3b8;
+          font-size: 14px;
+          line-height: 1.6;
+          margin-bottom: 18px;
+        }
+        .explainerSub {
+          color: #475569;
+          font-size: 12px;
+          margin-bottom: 26px;
+        }
+        .ctaBtn {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          background: linear-gradient(135deg, #00CED1, #06B6D4);
+          color: #060b14;
+          font-weight: 700;
+          font-size: 14px;
+          padding: 12px 22px;
+          border-radius: 999px;
+          text-decoration: none;
+        }
 
         .dash { max-width: 480px; margin: 0 auto; }
         .brandRow { display: flex; align-items: center; gap: 8px; margin-bottom: 20px; }
