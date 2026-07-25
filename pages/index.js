@@ -105,6 +105,25 @@ export default function Dashboard() {
               Telegram chat, no app required.
             </p>
 
+            <div className="featureGrid">
+              <div className="featureItem">
+                <div className="featureIcon">🔗</div>
+                <div className="featureLabel">Payment Links</div>
+              </div>
+              <div className="featureItem">
+                <div className="featureIcon">⚡</div>
+                <div className="featureLabel">Instant STK Push</div>
+              </div>
+              <div className="featureItem">
+                <div className="featureIcon">🏦</div>
+                <div className="featureLabel">Auto 60/40 Split</div>
+              </div>
+              <div className="featureItem">
+                <div className="featureIcon">🪙</div>
+                <div className="featureLabel">Crypto Rails</div>
+              </div>
+            </div>
+
             <p className="explainerSub">This dashboard is private and only opens from inside the bot.</p>
 
             <div className="ctaGroup">
@@ -125,6 +144,8 @@ export default function Dashboard() {
                 📱 Message on WhatsApp
               </a>
             </div>
+
+            <p className="explainerFooter">Self-Taught. Self-Made.</p>
           </div>
         )}
 
@@ -237,6 +258,31 @@ export default function Dashboard() {
           color: #475569;
           font-size: 11px;
           margin-bottom: 20px;
+        }
+        .featureGrid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 10px;
+          width: 100%;
+          margin-bottom: 20px;
+        }
+        .featureItem {
+          background: #0d1826;
+          border: 1px solid rgba(255,255,255,0.06);
+          border-radius: 14px;
+          padding: 14px 8px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 6px;
+        }
+        .featureIcon { font-size: 20px; }
+        .featureLabel { color: #cbd5e1; font-size: 12px; font-weight: 600; }
+        .explainerFooter {
+          text-align: center;
+          color: #334155;
+          font-size: 12px;
+          margin-top: 22px;
         }
         .ctaGroup {
           display: flex;
