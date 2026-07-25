@@ -64,7 +64,7 @@ export default async function handler(req) {
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
           <div style={{ fontSize: "26px", display: "flex" }}>🐋</div>
           <div style={{ fontSize: "24px", fontWeight: 700, color: "#ffffff", display: "flex" }}>
-            whale_sys
+            whale enterprise
           </div>
         </div>
 
@@ -120,7 +120,7 @@ export default async function handler(req) {
               CARD HOLDER
             </div>
             <div style={{ fontSize: "15px", color: "#ffffff", fontWeight: 600, display: "flex" }}>
-              WHALE_SYS PAY
+              WHALE ENTERPRISE PAY
             </div>
           </div>
         </div>
