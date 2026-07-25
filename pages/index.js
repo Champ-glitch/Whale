@@ -184,6 +184,7 @@ export default function Dashboard() {
       <style jsx>{`
         .page {
           min-height: 100vh;
+          min-height: 100dvh;
           background:
             radial-gradient(circle at 50% -10%, rgba(0,206,209,0.07), transparent 45%),
             linear-gradient(160deg, #060b14 0%, #0a1420 55%, #060b14 100%);
@@ -191,6 +192,7 @@ export default function Dashboard() {
         }
         .center {
           min-height: 80vh;
+          min-height: 80dvh;
           display: flex;
           flex-direction: column;
           align-items: center;
