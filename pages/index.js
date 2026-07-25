@@ -211,12 +211,10 @@ export default function Dashboard() {
 
         .explainer {
           max-width: 420px;
-          margin: 0 auto;
-          min-height: calc(100vh - 40px);
+          margin: 36px auto;
           display: flex;
           flex-direction: column;
           align-items: center;
-          justify-content: center;
           text-align: center;
         }
         .brandRow.center { justify-content: center; margin-bottom: 18px; }
