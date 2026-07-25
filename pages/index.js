@@ -90,7 +90,7 @@ export default function Dashboard() {
 
         {status === "unauthorized" && (
           <div className="explainer">
-            <div className="brandRow center">
+            <div className="brandRow brandCenter">
               <img src={WHALE_IMG} alt="" width="22" height="22" />
               <span>whale_sys</span>
             </div>
@@ -240,7 +240,7 @@ export default function Dashboard() {
           align-items: center;
           text-align: center;
         }
-        .brandRow.center { justify-content: center; margin-bottom: 18px; }
+        .brandRow.brandCenter { justify-content: center; margin-bottom: 18px; }
         .explainerTitle {
           color: #fff;
           font-size: 19px;
