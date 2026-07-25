@@ -1298,67 +1298,61 @@ async function handleBalanceCommand(chatId, host) {
     await saveBalanceSnapshot(balance);
   }
 
+  // Biggest transactions
+  const biggestIn = await getBiggestIn();
+  const biggestOutData = await getBiggestOut();
+  let biggestLine = "";
+  if (biggestIn > 0 || biggestOutData.amount > 0) {
+    biggestLine = `\n🏆 *Biggest In:* KES ${biggestIn.toLocaleString()}`;
+    if (biggestOutData.amount > 0) {
+      biggestLine += `\n🏆 *Biggest Out:* KES ${biggestOutData.amount.toLocaleString()} (${biggestOutData.reason})`;
+    }
+  }
+
+  // Main vs Savings split bar
   const totalAssets = balance + savings;
-
-  const header =
-    `💰 *Main:* KES ${balance.toLocaleString()}\n` +
-    `🏦 *Savings:* KES ${savings.toLocaleString()}\n` +
-    `💎 *Net Worth:* KES ${totalAssets.toLocaleString()}\n\n` +
-    `⬆️ In: KES ${stats.total.toLocaleString()}   ⬇️ Out: KES ${totalOut.toLocaleString()}  _(${inPct}% retained)_`;
-
-  const sections = [];
-
-  // Discipline: split bar + biggest transactions, grouped as one card section
-  let discipline = "";
+  let splitBarLine = "";
   if (totalAssets > 0) {
     const savingsSplitPct = Math.round((savings / totalAssets) * 100);
     const savingsFilled = Math.round((savingsSplitPct / 100) * 10);
     const splitBar = "🟢".repeat(savingsFilled) + "⚪".repeat(10 - savingsFilled);
-    discipline += `🧭 *Main vs Savings*\n${splitBar}  ${savingsSplitPct}% in Savings`;
+    splitBarLine = `\n\n💼 *Main vs Savings*\n${splitBar} ${savingsSplitPct}% in Savings`;
   }
-  const biggestIn = await getBiggestIn();
-  const biggestOutData = await getBiggestOut();
-  if (biggestIn > 0 || biggestOutData.amount > 0) {
-    if (discipline) discipline += "\n\n";
-    discipline += `🏆 *Biggest In:* KES ${biggestIn.toLocaleString()}`;
-    if (biggestOutData.amount > 0) {
-      discipline += `\n🏆 *Biggest Out:* KES ${biggestOutData.amount.toLocaleString()} — ${biggestOutData.reason}`;
-    }
-  }
-  if (discipline) sections.push(discipline);
 
-  // Savings goal (progress tracks the SAVINGS balance, not main)
+  // Savings goal (progress now tracks the SAVINGS balance, not main)
+  let goalLine = "";
   const goal = await getSavingsGoal();
   if (goal && goal > 0) {
     const goalPct = Math.min(Math.round((savings / goal) * 100), 100);
     const goalFilled = Math.round((goalPct / 100) * 10);
     const goalBar = "🟦".repeat(goalFilled) + "⬜".repeat(10 - goalFilled);
-    sections.push(`🎯 *Goal:* KES ${goal.toLocaleString()}\n${goalBar}  ${goalPct}%`);
+    goalLine = `\n\n🎯 *Goal:* KES ${goal.toLocaleString()}\n${goalBar} ${goalPct}%`;
   }
 
   // Pending savings transfer awaiting "WHALE approve"
+  let pendingLine = "";
   if (pendingSplit > 0) {
-    sections.push(`⏳ *Pending Transfer:* KES ${pendingSplit.toLocaleString()}\nReply *WHALE approve* to move it.`);
+    pendingLine = `\n\n⏳ *Pending Savings Transfer:* KES ${pendingSplit.toLocaleString()}\nReply *WHALE approve* to move it.`;
   }
 
   // Recent activity feed
   const activity = await getRecentActivity(4);
+  let activityLine = "";
   if (activity.length > 0) {
     const lines = activity.map((a) => {
       const icon = a.type === "in" ? "⬆️" : "⬇️";
-      const sign = a.type === "in" ? "+" : "−";
+      const sign = a.type === "in" ? "+" : "-";
       return `${icon} ${sign}KES ${Number(a.amount).toLocaleString()} — ${a.label}`;
     });
-    sections.push(`📋 *Recent Activity*\n${lines.join("\n")}`);
+    activityLine = `\n\n📋 *Recent Activity*\n${lines.join("\n")}`;
   }
 
-  const divider = "\n\n▫️▫️▫️▫️▫️▫️▫️▫️▫️▫️▫️▫️▫️▫️▫️\n\n";
-  const body = sections.length > 0 ? divider + sections.join(divider) : "";
-
-  const footer =
-    `\n\n_Every deposit auto-splits 60/40 · \`/deduct main|savings <amount>\` to log spending · \`/goal\` to set a target_`;
-
-  const caption = header + body + footer;
+  const caption =
+    `💰 Main: KES ${balance.toLocaleString()}   🏦 Savings: KES ${savings.toLocaleString()}\n` +
+    `💎 Net Worth: KES ${totalAssets.toLocaleString()}\n` +
+    `⬆️In: KES ${stats.total.toLocaleString()}   ⬇️Out: KES ${totalOut.toLocaleString()} (${inPct}% in)` +
+    `${splitBarLine}${biggestLine}${goalLine}${pendingLine}${activityLine}` +
+    `\n\n_Every deposit auto-splits 60/40. /deduct main|savings <amount> to log spending, /goal to set a savings target._`;
 
   const secret = process.env.BALANCE_CARD_SECRET;
   const params = new URLSearchParams();
