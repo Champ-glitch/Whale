@@ -91,7 +91,7 @@ export default function Dashboard() {
         {status === "unauthorized" && (
           <div className="explainer">
             <div className="brandRow center">
-              <img src={WHALE_IMG} alt="" width="24" height="24" />
+              <img src={WHALE_IMG} alt="" width="22" height="22" />
               <span>whale_sys</span>
             </div>
 
@@ -107,14 +107,24 @@ export default function Dashboard() {
 
             <p className="explainerSub">This dashboard is private and only opens from inside the bot.</p>
 
-            <a
-              className="ctaBtn"
-              href="https://t.me/Whale_sys"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              💬 DM @Whale_sys on Telegram to see it
-            </a>
+            <div className="ctaGroup">
+              <a
+                className="ctaBtn telegram"
+                href="https://t.me/Whale_sys"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                💬 DM @Whale_sys on Telegram
+              </a>
+              <a
+                className="ctaBtn whatsapp"
+                href="https://wa.me/254732751315"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                📱 Message on WhatsApp
+              </a>
+            </div>
           </div>
         )}
 
@@ -202,44 +212,57 @@ export default function Dashboard() {
         .explainer {
           max-width: 420px;
           margin: 0 auto;
-          min-height: 90vh;
+          min-height: calc(100vh - 40px);
           display: flex;
           flex-direction: column;
           align-items: center;
           justify-content: center;
           text-align: center;
-          padding: 20px;
         }
-        .brandRow.center { justify-content: center; margin-bottom: 24px; }
+        .brandRow.center { justify-content: center; margin-bottom: 18px; }
         .explainerTitle {
           color: #fff;
-          font-size: 21px;
+          font-size: 19px;
           font-weight: 700;
-          line-height: 1.35;
-          margin-bottom: 16px;
+          line-height: 1.3;
+          margin-bottom: 14px;
         }
         .explainerBody {
           color: #94a3b8;
-          font-size: 14px;
-          line-height: 1.6;
-          margin-bottom: 18px;
+          font-size: 13px;
+          line-height: 1.55;
+          margin-bottom: 14px;
         }
         .explainerSub {
           color: #475569;
-          font-size: 12px;
-          margin-bottom: 26px;
+          font-size: 11px;
+          margin-bottom: 20px;
+        }
+        .ctaGroup {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          width: 100%;
         }
         .ctaBtn {
-          display: inline-flex;
+          display: flex;
           align-items: center;
+          justify-content: center;
           gap: 8px;
-          background: linear-gradient(135deg, #00CED1, #06B6D4);
-          color: #060b14;
           font-weight: 700;
           font-size: 14px;
-          padding: 12px 22px;
+          padding: 12px 20px;
           border-radius: 999px;
           text-decoration: none;
+        }
+        .ctaBtn.telegram {
+          background: linear-gradient(135deg, #00CED1, #06B6D4);
+          color: #060b14;
+        }
+        .ctaBtn.whatsapp {
+          background: rgba(37, 211, 102, 0.12);
+          color: #25D366;
+          border: 1px solid rgba(37, 211, 102, 0.35);
         }
 
         .dash { max-width: 480px; margin: 0 auto; }
