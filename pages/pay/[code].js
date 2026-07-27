@@ -328,11 +328,28 @@ export default function PayPage({ invoice, code }) {
   if (!invoice) {
     return (
       <Shell title="Invalid Link">
-        <div className="centerState">
+        <div className="settledState">
           <StatusRing type="error" />
-          <p className="stateTitle">Link invalid or expired</p>
-          <p className="stateSub">This payment link is no longer active.</p>
+          <p className="settledTitle">Link invalid or expired</p>
+          <p className="settledSub">This payment link is no longer active. If you think this is a mistake, message us and we'll sort it out.</p>
+          <a className="settledCta" href={`https://wa.me/${SUPPORT_WHATSAPP}?text=Hi%2C%20my%20payment%20link%20looks%20expired%20or%20invalid`} target="_blank" rel="noopener noreferrer">
+            Message us →
+          </a>
         </div>
+        <style jsx>{`
+          .settledState { text-align: center; padding: 12px 4px; }
+          .settledTitle { color: #f8fafc; font-size: 20px; font-weight: 800; margin: 16px 0 6px; }
+          .settledSub { color: #94a3b8; font-size: 13.5px; margin: 0 0 22px; line-height: 1.5; }
+          .settledCta {
+            display: inline-block;
+            color: #00CED1;
+            font-size: 13px;
+            font-weight: 600;
+            text-decoration: none;
+            border-bottom: 1px solid rgba(0,206,209,0.3);
+            padding-bottom: 2px;
+          }
+        `}</style>
       </Shell>
     );
   }
@@ -340,11 +357,64 @@ export default function PayPage({ invoice, code }) {
   if (invoice.status === "success" && stage === "idle") {
     return (
       <Shell title="Already Paid">
-        <div className="centerState">
+        <div className="settledState">
           <StatusRing type="success" />
-          <p className="stateTitle">Already paid</p>
-          <p className="stateSub">This invoice has already been settled.</p>
+          <p className="settledTitle">Already Paid</p>
+          <p className="settledSub">This invoice was already settled — no need to pay again.</p>
+
+          <div className="settledCard">
+            <div className="settledRow">
+              <span className="settledLabel">Amount</span>
+              <span className="settledValue">KES {invoice.amount.toLocaleString()}</span>
+            </div>
+            <div className="settledRow">
+              <span className="settledLabel">Description</span>
+              <span className="settledValue">{invoice.description}</span>
+            </div>
+            <div className="settledRow">
+              <span className="settledLabel">Invoice</span>
+              <span className="settledValue mono">{code}</span>
+            </div>
+          </div>
+
+          <a className="settledCta" href={`https://wa.me/${SUPPORT_WHATSAPP}?text=Hi%2C%20I%20need%20a%20new%20invoice`} target="_blank" rel="noopener noreferrer">
+            Need a new invoice? Message us →
+          </a>
         </div>
+        <style jsx>{`
+          .settledState { text-align: center; padding: 12px 4px; }
+          .settledTitle { color: #f8fafc; font-size: 20px; font-weight: 800; margin: 16px 0 6px; }
+          .settledSub { color: #94a3b8; font-size: 13.5px; margin: 0 0 22px; line-height: 1.5; }
+          .settledCard {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 12px;
+            padding: 4px 16px;
+            margin: 0 0 24px;
+            text-align: left;
+          }
+          .settledRow {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            padding: 11px 0;
+            font-size: 13px;
+          }
+          .settledRow + .settledRow { border-top: 1px solid rgba(255,255,255,0.06); }
+          .settledLabel { color: #64748b; flex-shrink: 0; }
+          .settledValue { color: #e2e8f0; text-align: right; }
+          .settledValue.mono { font-family: monospace; letter-spacing: 0.3px; }
+          .settledCta {
+            display: inline-block;
+            color: #00CED1;
+            font-size: 13px;
+            font-weight: 600;
+            text-decoration: none;
+            border-bottom: 1px solid rgba(0,206,209,0.3);
+            padding-bottom: 2px;
+          }
+        `}</style>
       </Shell>
     );
   }
