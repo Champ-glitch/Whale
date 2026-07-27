@@ -437,7 +437,7 @@ export default function PayPage({ invoice, code }) {
           {stage !== "idle" && (
             <div className="topRow">
               <div className="brandMark">
-                <img src={WHALE_IMG} alt="" width="22" height="22" />
+                <span className="logoBadge">W</span>
                 <span>WHALE ENTERPRISE</span>
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M9 12l2 2 4-4" stroke="#00CED1" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/><circle cx="12" cy="12" r="10" stroke="#00CED1" strokeWidth="1.5"/></svg>
               </div>
@@ -568,10 +568,21 @@ export default function PayPage({ invoice, code }) {
                 <p className="noFees">No additional fees</p>
               </div>
 
-              <p className="paymentFor">Payment for: {invoice.description}</p>
-              <p className="refLine" onClick={() => copyToClipboard(code, "Invoice code")} role="button" tabIndex={0}>
-                Ref: {code} <span className="copyHint">tap to copy</span>
-              </p>
+              <div className="paymentMeta">
+                <div className="metaRow">
+                  <span className="metaLabel">Description</span>
+                  <span className="metaValue">{invoice.description}</span>
+                </div>
+                <div
+                  className="metaRow clickable"
+                  onClick={() => copyToClipboard(code, "Invoice code")}
+                  role="button"
+                  tabIndex={0}
+                >
+                  <span className="metaLabel">Reference</span>
+                  <span className="metaValue mono">{code} <span className="copyHint">⧉ copy</span></span>
+                </div>
+              </div>
 
               <form onSubmit={handleSubmit} className={shake ? "shake" : ""}>
                 <div className="phoneGroup">
@@ -669,9 +680,27 @@ export default function PayPage({ invoice, code }) {
         .recipientLine { color: #94a3b8; font-size: 13px; text-align: center; margin: 0 0 16px; }
         .recipientLine strong { color: #e2e8f0; }
         .noFees { color: #4ade80; font-size: 11.5px; text-align: center; margin: 6px 0 0; }
-        .paymentFor { color: #94a3b8; font-size: 13px; text-align: center; margin: 0 0 4px; line-height: 1.6; }
-        .refLine { color: #475569; font-size: 11px; text-align: center; margin: 0 0 26px; font-family: monospace; cursor: pointer; }
-        .copyHint { color: #334155; font-family: 'Inter', sans-serif; font-size: 10px; margin-left: 4px; }
+        .paymentMeta {
+          background: rgba(255,255,255,0.03);
+          border: 1px solid rgba(255,255,255,0.06);
+          border-radius: 10px;
+          padding: 4px 14px;
+          margin: 0 0 22px;
+        }
+        .metaRow {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 12px;
+          padding: 9px 0;
+          font-size: 12.5px;
+        }
+        .metaRow + .metaRow { border-top: 1px solid rgba(255,255,255,0.05); }
+        .metaRow.clickable { cursor: pointer; }
+        .metaLabel { color: #64748b; flex-shrink: 0; }
+        .metaValue { color: #cbd5e1; text-align: right; }
+        .metaValue.mono { font-family: monospace; letter-spacing: 0.4px; }
+        .copyHint { color: #475569; font-family: 'Inter', sans-serif; font-size: 10px; margin-left: 2px; }
         .offlineBanner {
           background: rgba(248,113,113,0.12);
           border: 1px solid rgba(248,113,113,0.3);
@@ -713,20 +742,23 @@ export default function PayPage({ invoice, code }) {
         .tipLine { color: #334155; font-size: 11.5px; text-align: center; margin: 22px 0 0; }
         .payNowBtn {
           display: block;
+          width: 100%;
           margin: 26px auto 0;
-          padding: 13px 30px;
-          background: transparent;
-          border: 2px solid #ffffff;
-          border-radius: 8px;
-          color: #ffffff;
-          font-size: 13px;
-          font-weight: 700;
-          letter-spacing: 1.5px;
+          padding: 15px 30px;
+          background: linear-gradient(135deg, #00CED1, #06B6D4);
+          border: none;
+          border-radius: 10px;
+          color: #060b14;
+          font-size: 14px;
+          font-weight: 800;
+          letter-spacing: 1px;
           cursor: pointer;
-          transition: background 0.2s, color 0.2s, opacity 0.2s;
+          box-shadow: 0 8px 20px rgba(0,206,209,0.25);
+          transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.2s ease;
         }
-        .payNowBtn:hover:not(:disabled) { background: #ffffff; color: #0A1628; }
-        .payNowBtn:disabled { opacity: 0.35; cursor: not-allowed; }
+        .payNowBtn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 10px 26px rgba(0,206,209,0.35); }
+        .payNowBtn:active:not(:disabled) { transform: translateY(0); }
+        .payNowBtn:disabled { background: rgba(255,255,255,0.08); color: #475569; box-shadow: none; cursor: not-allowed; }
         .payNowBtn .arrow { display: inline-block; margin-left: 4px; }
         .expiryNote { text-align: center; margin: 14px 0 0; }
         .featureGrid { display: flex; justify-content: space-between; margin-top: 24px; gap: 8px; }
@@ -761,6 +793,21 @@ export default function PayPage({ invoice, code }) {
         .helpInline { background: none; border: none; color: #64748b; font-size: 10.5px; cursor: pointer; padding: 0; text-decoration: underline; }
         .topRow { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
         .brandMark { display: flex; align-items: center; gap: 6px; color: #e2e8f0; font-weight: 700; font-size: 13px; letter-spacing: 0.4px; }
+        .logoBadge {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 20px;
+          height: 20px;
+          border-radius: 50%;
+          background: linear-gradient(135deg, #FFD700, #B8860B);
+          color: #060b14;
+          font-family: 'Playfair Display', serif;
+          font-style: italic;
+          font-weight: 700;
+          font-size: 12px;
+          flex-shrink: 0;
+        }
         .stepBar { display: flex; gap: 6px; margin-bottom: 28px; }
         .amountSection { text-align: center; margin-bottom: 4px; }
         .amountLabel { color: #64748b; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; margin: 0 0 6px; }
