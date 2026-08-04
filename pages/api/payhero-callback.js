@@ -2,6 +2,7 @@ import { sendTelegramMessage, sendTelegramAnimation } from "../../lib/telegram.j
 import { kesToUsdt } from "../../lib/rates.js";
 import { getRandomQuote, getRandomGif } from "../../lib/extras.js";
 import { parseReference } from "../../lib/reference.js";
+import { sendSMS } from "../../lib/sms.js";
 import {
   updateInvoiceStatus,
   recordSuccessStats,
@@ -148,6 +149,13 @@ export default async function handler(req, res) {
         invoiceCode: invoiceCode || null,
         mpesaReceipt: mpesaReceipt || null,
       });
+
+      if (senderPhone) {
+        await sendSMS(
+          senderPhone,
+          `Thank you for your payment of KES ${amount} to Whale Enterprise. M-Pesa Ref: ${mpesaReceipt || rawReference}. We appreciate your business!`
+        );
+      }
 
       if (stats.crossedMilestone) {
         await sendTelegramMessage(
