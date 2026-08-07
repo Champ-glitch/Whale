@@ -1356,7 +1356,7 @@ async function handleBalanceCommand(chatId, host) {
   const body = sections.length > 0 ? divider + sections.join(divider) : "";
 
   const footer =
-    `\n\n_Every deposit auto-splits 60/40 · \`/deduct main|savings <amount>\` to log spending · \`/goal\` to set a target_`;
+    `\n\n_40% is earmarked for Savings — a reminder goes out every Sunday · \`/deduct main|savings <amount>\` to log spending · \`/goal\` to set a target_`;
 
   const caption = header + body + footer;
 

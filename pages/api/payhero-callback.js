@@ -25,34 +25,17 @@ async function triggerSplit(chatId, amount, meta = {}) {
   if (!amt || amt <= 0) return;
 
   const savingsShare = Math.round(amt * SPLIT_RATIO * 100) / 100;
-  const mainShare = Math.round((amt - savingsShare) * 100) / 100;
-  const pendingTotal = await addPendingSplit(savingsShare, meta);
+  await addPendingSplit(savingsShare, meta);
 
+  // No per-deposit message anymore - funds land on the Till, not a
+  // personal account, so there's nothing to "auto-move" in real life.
+  // The pending total quietly accumulates here all week; the Sunday
+  // cron (pages/api/cron/savings-reminder.js) reports it and "WHALE
+  // approve" still clears it once you've actually sent the money.
   const autoApprove = await getAutoApprove();
   if (autoApprove) {
-    const moved = await approvePendingSplit();
-    const savings = await getSavingsBalance();
-    const main = await getBalance();
-    await sendTelegramMessage(
-      chatId,
-      `🔀 *Auto-Split (auto-approved)*\n` +
-        `KES ${amt.toLocaleString()} received\n` +
-        `💰 60% stays in Main: KES ${mainShare.toLocaleString()}\n` +
-        `🏦 40% → Savings: KES ${savingsShare.toLocaleString()} (moved automatically)\n\n` +
-        `💰 Main: KES ${main.toLocaleString()}   🏦 Savings: KES ${savings.toLocaleString()}`
-    );
-    return;
+    await approvePendingSplit();
   }
-
-  await sendTelegramMessage(
-    chatId,
-    `🔀 *Auto-Split*\n` +
-      `KES ${amt.toLocaleString()} received\n` +
-      `💰 60% stays in Main: KES ${mainShare.toLocaleString()}\n` +
-      `🏦 40% → Savings: KES ${savingsShare.toLocaleString()}\n\n` +
-      `⏳ Pending savings transfer: *KES ${pendingTotal.toLocaleString()}*\n` +
-      `Reply *WHALE approve* to move it, or /autoapprove on to skip this step.`
-  );
 }
 
 export default async function handler(req, res) {
