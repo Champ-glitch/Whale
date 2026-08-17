@@ -1,6 +1,6 @@
-import { createSTKPush } from '../lib/makamesco';
-import { getInvoice, updateInvoiceStatus, isLockedOut, recordFailedAttempt, checkRateLimit } from '../lib/kv';
-import { buildReference } from '../lib/reference';
+import { createSTKPush } from '../../lib/makamesco';
+import { getInvoice, updateInvoiceStatus, isLockedOut, recordFailedAttempt, checkRateLimit } from '../../lib/kv';
+import { buildReference } from '../../lib/reference';
 
 function formatPhone(phone) {
   if (!phone) return null;
@@ -26,7 +26,7 @@ export default async function handler(req, res) {
   const formattedPhone = formatPhone(finalPhone);
 
   if (!formattedPhone || formattedPhone.length!== 12 ||!formattedPhone.startsWith("254")) {
-    return res.status(400).json({ error: "Invalid phone number. Use 07XX XXX or 2547XX XXX" });
+    return res.status(400).json({ error: "Invalid phone number. Use 07XX XXX or 2547XX XXX XXX" });
   }
 
   const ip = req.headers["x-forwarded-for"]?.split(",")[0] || "unknown";
