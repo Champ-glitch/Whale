@@ -978,11 +978,11 @@ function FAQAccordion({ code, whatsapp }) {
   const faqs = [
     {
       q: "Is this payment secure?",
-      a: "Yes. Payments are processed directly through Safaricom M-Pesa via PayHero, a licensed payment processor. Whale Enterprise never sees or stores your M-Pesa PIN.",
+      a: "Yes. Payments are processed directly through Safaricom M-Pesa via Makamesco nexus, a licensed payment processor. Whale Enterprise never sees or stores your M-Pesa PIN.",
     },
     {
       q: "I didn't get a prompt on my phone",
-      a: "This can happen if your phone has no signal or Airtime balance for the USSD session. Try again, or tap \"Need help?\" below to reach support directly.",
+      a: "This can happen if your phone has no signal or you dont have sufficient funds. Try again, or tap \"Need help?\" below to reach support directly.",
     },
     {
       q: "Can I use this link again?",
