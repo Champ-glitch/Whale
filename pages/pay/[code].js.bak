@@ -393,7 +393,7 @@ export default function PayPage({ invoice, code }) {
       const res = await fetch("/api/invoice-pay", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code, phoneNumber: cleanPhone }),
+        body: JSON.stringify({ code, phoneNumber: phone })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Something went wrong");
