@@ -75,4 +75,4 @@ export default async function handler(req, res) {
     console.error("makamesco-callback error:", err);
     return res.status(200).json({ ok: true });
   }
-}
+} 
