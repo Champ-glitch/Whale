@@ -1,9 +1,15 @@
-// pages/api/invoice-pay.js
-// Called from the public /pay/[code] page when a client submits their phone number.
-
 import { createSTKPush } from '../../lib/makamesco.js';
 import { getInvoice, updateInvoiceStatus, isLockedOut, recordFailedAttempt, checkRateLimit } from '../../lib/kv.js';
 import { buildReference } from '../../lib/reference.js';
+
+function formatPhone(phone) {
+  if (!phone) return '';
+  let p = phone.replace(/\D/g, '');
+  if (p.startsWith('0') && p.length === 10) p = '254' + p.slice(1);
+  if (p.startsWith('7') && p.length === 9) p = '254' + p;
+  if (p.startsWith('254') && p.length === 12) return p;
+  return p;
+}
 
 export default async function handler(req, res) {
   if (req.method!== "POST") {
@@ -16,7 +22,12 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: "Missing code or phone number" });
   }
 
-  // Basic abuse protection: cap attempts per invoice code and per IP.
+  const formattedPhone = formatPhone(phoneNumber);
+  
+  if (formattedPhone.length!== 12 ||!formattedPhone.startsWith('2547')) {
+    return res.status(400).json({ error: "Invalid phone number. Use 07XX XXX XXX or 2547XX XXX XXX" });
+  }
+
   const ip = req.headers["x-forwarded-for"]?.split(",")[0] || "unknown";
   const ipAllowed = await checkRateLimit(`invoicepay-ip:${ip}`, 10, 60);
   if (!ipAllowed) {
@@ -45,14 +56,13 @@ export default async function handler(req, res) {
   try {
     await createSTKPush({
       amount: invoice.amount,
-      phone: phoneNumber,
+      phone: formattedPhone,
       accountReference: reference,
     });
-    return res.status(200).json({ ok: true });
+    return res.status(200).json({ ok: true, message: "STK sent" });
   } catch (err) {
-    console.error("Invoice STK push error:", err);
     await updateInvoiceStatus(code, "failed");
     await recordFailedAttempt(code);
-    return res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: err.message || "Failed to send STK" });
   }
 }
