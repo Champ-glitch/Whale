@@ -2,17 +2,21 @@
 // Called from the public /pay/[code] page when a client submits their phone number.
 
 import { initiateSTKPush } from "../../lib/makamesco.js";
-import { getInvoice, updateInvoiceStatus, isLockedOut, recordFailedAttempt, checkRateLimit } from "../../lib/kv.js";
-import { buildReference } from "../../lib/reference.js";
+import { getInvoice, updateInvoiceStatus// pages/api/invoice-pay.js
+// Called from the public /pay/[code] page when a client submits their phone number.
+
+import { createSTKPush } from '../../lib/makamesco.js';
+import { getInvoice, updateInvoiceStatus, isLockedOut, recordFailedAttempt, checkRateLimit } from '../../lib/kv.js';
+import { buildReference } from '../../lib/reference.js';
 
 export default async function handler(req, res) {
-  if (req.method !== "POST") {
+  if (req.method!== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
   const { code, phoneNumber } = req.body || {};
 
-  if (!code || !phoneNumber) {
+  if (!code ||!phoneNumber) {
     return res.status(400).json({ error: "Missing code or phone number" });
   }
 
@@ -43,10 +47,10 @@ export default async function handler(req, res) {
   const reference = buildReference(invoice.chatId, code);
 
   try {
-    await initiateSTKPush({
+    await createSTKPush({
       amount: invoice.amount,
-      phoneNumber,
-      reference,
+      phone: phoneNumber,
+      accountReference: reference,
     });
     return res.status(200).json({ ok: true });
   } catch (err) {
