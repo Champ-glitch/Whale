@@ -1,4 +1,4 @@
-import { initiateSTKPush } from "../../lib/payhero.js";
+import { initiateSTKPush } from "../../lib/makamesco.js";
 import { sendTelegramMessage, answerCallbackQuery, sendTelegramPhoto } from "../../lib/telegram.js";
 import {
   saveInvoice,
