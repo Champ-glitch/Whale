@@ -1,8 +1,8 @@
 // pages/api/makamesco-callback.js
-import { kv } from '@/lib/kv';
-import { sendTelegramMessage, sendTelegramAnimation } from '@/lib/telegram';
-import { getRandomGif, getRandomQuote } from '@/lib/extras';
-import { kesToUsdt } from '@/lib/rates.js';
+import { kv } from '../../lib/kv';
+import { sendTelegramMessage, sendTelegramAnimation } from '../../lib/telegram';
+import { getRandomGif, getRandomQuote } from '../../lib/extras';
+import { kesToUsdt } from '../../lib/rates.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -31,16 +31,12 @@ export default async function handler(req, res) {
       }
 
       const amountNum = Number(amount);
-
-      // NOTE: 60/40 split. 60% to admin, 40% to user wallet
       const adminShare = Math.round(amountNum * 0.6);
       const userShare = amountNum - adminShare;
 
-      // Update balances
       await kv.incrby('balance:admin', adminShare);
       await kv.incrby(`balance:user:${invoice.userId}`, userShare);
 
-      // Mark invoice paid
       await kv.set(`invoice:${invoiceCode}`, {
         ...invoice,
         paid: true,
@@ -48,7 +44,6 @@ export default async function handler(req, res) {
         paidAt: new Date().toISOString()
       });
 
-      // Telegram message
       const usdt = await kesToUsdt(amountNum);
       const usdtLine = usdt ? `\n${usdt} USDT` : '';
       const quote = getRandomQuote();
@@ -65,7 +60,6 @@ export default async function handler(req, res) {
       await sendTelegramAnimation(invoice.chatId, getRandomGif(), caption);
 
     } else {
-      // Find invoice to notify user of failure
       const invoice = await kv.get(`invoice:${invoiceCode}`);
       if (invoice) {
         await sendTelegramMessage(invoice.chatId, `❌ Payment not completed. Ref: ${invoiceCode}`);
