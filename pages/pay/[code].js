@@ -33,7 +33,7 @@ const TIP_MESSAGES = [
   "💡 Tip: You'll get a receipt automatically once confirmed.",
 ];
 const TIKTOK_URL = "https://www.tiktok.com/@Whale_sys";
-const EXPIRY_HOURS = 48;
+const EXPIRY_HOURS = 12;
 const WHALE_IMG = "https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/svg/1f40b.svg";
 const FAVICON = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%90%8B%3C/text%3E%3C/svg%3E";
 
@@ -460,11 +460,11 @@ export default function PayPage({ invoice, code }) {
     setErrorMsg("");
 
     try {
-      const res = await fetch("/api/invoice-pay", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code, phoneNumber: cleanPhone }),
-      });
+      const res = await fetch('/api/invoice-pay', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ code, phoneNumber: phone })
+})
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Something went wrong");
       setStage("verifying");
