@@ -1,10 +1,6 @@
 // pages/api/invoice-pay.js
 // Called from the public /pay/[code] page when a client submits their phone number.
 
-import { initiateSTKPush } from "../../lib/makamesco.js";
-import { getInvoice, updateInvoiceStatus// pages/api/invoice-pay.js
-// Called from the public /pay/[code] page when a client submits their phone number.
-
 import { createSTKPush } from '../../lib/makamesco.js';
 import { getInvoice, updateInvoiceStatus, isLockedOut, recordFailedAttempt, checkRateLimit } from '../../lib/kv.js';
 import { buildReference } from '../../lib/reference.js';
