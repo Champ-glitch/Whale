@@ -1,18 +1,18 @@
-import { createSTKPush } from '../../lib/makamesco.js';
-import { getInvoice, updateInvoiceStatus, isLockedOut, recordFailedAttempt, checkRateLimit } from '../../lib/kv.js';
-import { buildReference } from '../../lib/reference.js';
+import { createSTKPush } from '../../lib/makamesco';
+import { getInvoice, updateInvoiceStatus, isLockedOut, recordFailedAttempt, checkRateLimit } from '../../lib/kv';
+import { buildReference } from '../../lib/reference';
 
 function formatPhone(phone) {
-  if (!phone) return '';
-  let p = phone.replace(/\D/g, '');
-  if (p.startsWith('0') && p.length === 10) p = '254' + p.slice(1);
-  if (p.startsWith('7') && p.length === 9) p = '254' + p;
-  if (p.startsWith('254') && p.length === 12) return p;
-  return p;
+  if (!phone) return null;
+  let p = phone.replace(/\D/g, "");
+  if (p.startsWith("0") && p.length === 10) p = "254" + p.slice(1);
+  if (p.startsWith("7") && p.length === 9) p = "254" + p;
+  if (p.startsWith("254") && p.length === 12) return p;
+  return null;
 }
 
 export default async function handler(req, res) {
-  if (req.method!== "POST") {
+  if (req.method!== 'POST') {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
@@ -23,8 +23,8 @@ export default async function handler(req, res) {
   }
 
   const formattedPhone = formatPhone(phoneNumber);
-  
-  if (formattedPhone.length!== 12 ||!formattedPhone.startsWith('2547')) {
+
+  if (!formattedPhone || formattedPhone.length!== 12 ||!formattedPhone.startsWith("254")) {
     return res.status(400).json({ error: "Invalid phone number. Use 07XX XXX XXX or 2547XX XXX XXX" });
   }
 
