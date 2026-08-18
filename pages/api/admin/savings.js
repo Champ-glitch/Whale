@@ -7,6 +7,8 @@ import {
   approvePendingSplit,
   getAutoApprove,
   setAutoApprove,
+  getSavingsGoal,
+  setSavingsGoal,
 } from '../../../lib/kv';
 
 export default async function handler(req, res) {
@@ -14,13 +16,14 @@ export default async function handler(req, res) {
 
   if (req.method === 'GET') {
     try {
-      const [savings, pending, log, autoApprove] = await Promise.all([
+      const [savings, pending, log, autoApprove, savingsGoal] = await Promise.all([
         getSavingsBalance(),
         getPendingSplitTotal(),
         listPendingSplitLog(10),
         getAutoApprove(),
+        getSavingsGoal(),
       ]);
-      return res.status(200).json({ savings, pending, log, autoApprove });
+      return res.status(200).json({ savings, pending, log, autoApprove, savingsGoal });
     } catch (err) {
       console.error('admin/savings GET error:', err);
       return res.status(500).json({ error: 'Failed to load savings data' });
@@ -36,6 +39,14 @@ export default async function handler(req, res) {
       }
       if (action === 'autoapprove') {
         await setAutoApprove(!!enabled);
+        return res.status(200).json({ ok: true });
+      }
+      if (action === 'setgoal') {
+        const { amount } = req.body;
+        if (!amount || Number(amount) <= 0) {
+          return res.status(400).json({ error: 'Enter a valid goal amount' });
+        }
+        await setSavingsGoal(Number(amount));
         return res.status(200).json({ ok: true });
       }
       return res.status(400).json({ error: 'Unknown action' });

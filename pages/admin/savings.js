@@ -18,6 +18,8 @@ export default function AdminSavings() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [approving, setApproving] = useState(false);
+  const [goalInput, setGoalInput] = useState('');
+  const [savingGoal, setSavingGoal] = useState(false);
 
   const [loadError, setLoadError] = useState('');
 
@@ -57,6 +59,26 @@ export default function AdminSavings() {
     }
   }
 
+  async function handleSetGoal(e) {
+    e.preventDefault();
+    setSavingGoal(true);
+    try {
+      const res = await fetch('/api/admin/savings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'setgoal', amount: goalInput }),
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error);
+      setGoalInput('');
+      load();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setSavingGoal(false);
+    }
+  }
+
   async function toggleAutoApprove() {
     const newVal = !data.autoApprove;
     await fetch('/api/admin/savings', {
@@ -89,6 +111,30 @@ export default function AdminSavings() {
               <p className="cardLabel">Pending (not yet moved)</p>
               <p className="cardValue coral">{fmt(data.pending)}</p>
             </div>
+          </div>
+
+          <div className="actionCard">
+            <p className="actionTitle" style={{ marginBottom: 10 }}>Savings Goal</p>
+            {data.savingsGoal ? (
+              <p className="actionSub" style={{ marginBottom: 12 }}>
+                Current goal: {fmt(data.savingsGoal)}
+              </p>
+            ) : (
+              <p className="actionSub" style={{ marginBottom: 12 }}>No goal set yet.</p>
+            )}
+            <form onSubmit={handleSetGoal} className="goalForm">
+              <input
+                type="number"
+                value={goalInput}
+                onChange={(e) => setGoalInput(e.target.value)}
+                className="goalInput"
+                placeholder="e.g. 5000"
+                required
+              />
+              <button type="submit" disabled={savingGoal} className="goalBtn">
+                {savingGoal ? 'Saving...' : data.savingsGoal ? 'Update' : 'Set goal'}
+              </button>
+            </form>
           </div>
 
           <div className="actionCard">
@@ -193,6 +239,31 @@ export default function AdminSavings() {
           transition: left 0.15s;
         }
         .toggle.on .toggleKnob { left: 23px; }
+        .goalForm { display: flex; gap: 8px; }
+        .goalInput {
+          flex: 1;
+          background: #060b14;
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          border-radius: 8px;
+          padding: 10px 12px;
+          color: #e2e8f0;
+          font-size: 14px;
+          font-family: inherit;
+        }
+        .goalInput:focus { outline: none; border-color: #00ced1; }
+        .goalBtn {
+          background: #00ced1;
+          color: #0a1628;
+          border: none;
+          border-radius: 8px;
+          padding: 10px 16px;
+          font-weight: 700;
+          font-size: 13px;
+          cursor: pointer;
+          font-family: inherit;
+          white-space: nowrap;
+        }
+        .goalBtn:disabled { opacity: 0.6; }
         .approveBtn {
           width: 100%;
           background: #ffd700;

@@ -1,5 +1,5 @@
 // pages/admin/index.js
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import AdminLayout from '../../components/AdminLayout';
 import { isAuthenticated } from '../../lib/adminAuth';
 
@@ -44,12 +44,37 @@ export default function AdminDashboard() {
   const [summary, setSummary] = useState(null);
   const [health, setHealth] = useState({ kv: true, telegram: true, makamesco: true });
   const [loading, setLoading] = useState(true);
+  const [toast, setToast] = useState(null);
+  const lastCountRef = useRef(null);
+
+  function playChime() {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(880, ctx.currentTime);
+      osc.frequency.setValueAtTime(1175, ctx.currentTime + 0.1);
+      gain.gain.setValueAtTime(0.15, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.4);
+    } catch {}
+  }
 
   function load() {
     Promise.all([
       fetch('/api/admin/summary').then((r) => r.json()),
       fetch('/api/admin/health').then((r) => r.json()),
     ]).then(([s, h]) => {
+      if (lastCountRef.current !== null && s.stats.count > lastCountRef.current) {
+        playChime();
+        setToast(`New payment received — ${s.stats.count - lastCountRef.current} confirmed`);
+        setTimeout(() => setToast(null), 5000);
+      }
+      lastCountRef.current = s.stats.count;
       setSummary(s);
       setHealth(h);
       setLoading(false);
@@ -70,6 +95,7 @@ export default function AdminDashboard() {
 
   return (
     <AdminLayout title="Dashboard" pulse={pulse}>
+      {toast && <div className="toast">🔔 {toast}</div>}
       {loading ? (
         <p className="loading">Loading...</p>
       ) : (
@@ -151,6 +177,22 @@ export default function AdminDashboard() {
 
       <style jsx>{`
         .loading { color: #94a3b8; }
+        .toast {
+          position: fixed;
+          top: 70px;
+          right: 16px;
+          left: 16px;
+          max-width: 320px;
+          margin-left: auto;
+          background: #0a1628;
+          border: 1px solid #00ced1;
+          color: #e2e8f0;
+          padding: 12px 16px;
+          border-radius: 10px;
+          font-size: 13px;
+          z-index: 50;
+          box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+        }
         .heroCard {
           background: linear-gradient(135deg, #0a1628 0%, #0d1d33 100%);
           border: 1px solid rgba(255, 215, 0, 0.15);
