@@ -1,5 +1,5 @@
 import { getInvoice, updateInvoiceStatus } from '../../lib/kv';
-import { initiateSTKPush } from '../../lib/makamesco';
+import { createSTKPush } from '../../lib/makamesco';
 
 function formatPhone(phone) {
   let p = phone.toString().replace(/\D/g, ''); // "712345678"
@@ -34,10 +34,10 @@ export default async function handler(req, res) {
 
     const formattedPhone = formatPhone(phone); // "712345678" -> "254712345678"
 
-    await initiateSTKPush({
+    await createSTKPush({
       amount: invoice.amount,
-      phone: formattedPhone,
-      accountReference: invoiceId
+      phoneNumber: formattedPhone,
+      reference: invoiceId
     });
 
     await updateInvoiceStatus(invoiceId, 'sent');

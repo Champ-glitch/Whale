@@ -1,4 +1,4 @@
-import { initiateSTKPush } from "../../lib/makamesco.js";
+import { createSTKPush } from "../../lib/makamesco.js";
 import { sendTelegramMessage, answerCallbackQuery, sendTelegramPhoto } from "../../lib/telegram.js";
 import {
   saveInvoice,
@@ -1062,7 +1062,7 @@ async function executePay(chatId, amount, phoneNumber) {
   const reference = buildReference(chatId);
   try {
     await sendTelegramMessage(chatId, `⏳ Sending STK push of *KES ${amount}* to *${phoneNumber}*...`);
-    await initiateSTKPush({ amount, phoneNumber, reference });
+    await createSTKPush({ amount, phoneNumber, reference });
     await sendTelegramMessage(chatId, `📲 Prompt sent. Waiting for client to enter M-Pesa PIN...`);
   } catch (err) {
     console.error("STK push error:", err);
