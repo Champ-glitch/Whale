@@ -4,7 +4,7 @@ import { sendTelegramMessage, sendTelegramAnimation } from '../../lib/telegram';
 import { getRandomGif, getRandomQuote } from '../../lib/extras';
 import { kesToUsdt } from '../../lib/rates';
 import { parseReference } from '../../lib/reference';
-import { recordSuccessStats, addPendingSplit, SPLIT_RATIO, getAutoApprove, setSavingsBalance, getSavingsBalance } from '../../lib/kv';
+import { recordSuccessStats, addPendingSplit, SPLIT_RATIO, getAutoApprove, setSavingsBalance, getSavingsBalance, updateAdminPaymentStatus } from '../../lib/kv';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -40,6 +40,11 @@ export default async function handler(req, res) {
       } else {
         await addPendingSplit(savingsShare, { accountReference });
       }
+    }
+
+    if (accountReference.startsWith('ADMIN-')) {
+      await updateAdminPaymentStatus(accountReference, success ? 'success' : 'failed');
+      return res.status(200).json({ ok: true });
     }
 
     const parsed = parseReference(accountReference);

@@ -1,6 +1,7 @@
 // pages/api/admin/send.js
 import { isAuthenticated } from '../../../lib/adminAuth';
 import { createSTKPush } from '../../../lib/makamesco';
+import { saveAdminPayment } from '../../../lib/kv';
 
 export default async function handler(req, res) {
   if (!isAuthenticated(req)) return res.status(401).json({ error: 'Unauthorized' });
@@ -17,6 +18,7 @@ export default async function handler(req, res) {
 
   try {
     const reference = `ADMIN-${Date.now()}`;
+    await saveAdminPayment(reference, { amount: Number(amount), phoneNumber, status: 'pending', createdAt: Date.now() });
     await createSTKPush({ amount: Number(amount), phoneNumber, reference });
     return res.status(200).json({ ok: true, reference });
   } catch (err) {

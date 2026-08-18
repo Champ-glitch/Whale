@@ -1,5 +1,5 @@
 // pages/admin/send.js
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import AdminLayout from '../../components/AdminLayout';
 import { isAuthenticated } from '../../lib/adminAuth';
 
@@ -14,12 +14,32 @@ export default function AdminSend() {
   const [amount, setAmount] = useState('');
   const [phone, setPhone] = useState('');
   const [sending, setSending] = useState(false);
-  const [result, setResult] = useState(null);
+  const [status, setStatus] = useState(null);
+  const [error, setError] = useState('');
+  const pollRef = useRef(null);
+
+  function poll(reference, attempts = 0) {
+    fetch(`/api/admin/send-status?reference=${reference}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.status === 'success' || data.status === 'failed') {
+          setStatus(data.status);
+          return;
+        }
+        if (attempts >= 20) {
+          setStatus('timeout');
+          return;
+        }
+        pollRef.current = setTimeout(() => poll(reference, attempts + 1), 3000);
+      });
+  }
 
   async function handleSubmit(e) {
     e.preventDefault();
     setSending(true);
-    setResult(null);
+    setStatus(null);
+    setError('');
+    clearTimeout(pollRef.current);
     try {
       const res = await fetch('/api/admin/send', {
         method: 'POST',
@@ -28,17 +48,23 @@ export default function AdminSend() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      setResult({ ok: true, message: `Prompt sent to ${phone}. Waiting for M-Pesa confirmation.` });
-      setAmount('');
-      setPhone('');
+      setStatus('pending');
+      poll(data.reference);
     } catch (err) {
-      setResult({ ok: false, message: err.message });
+      setError(err.message);
     } finally {
       setSending(false);
     }
   }
 
   const pulse = [{ name: 'KV', ok: true }, { name: 'Telegram', ok: true }, { name: 'Makamesco', ok: true }];
+
+  const statusText = {
+    pending: '⏳ Prompt sent — waiting for M-Pesa confirmation...',
+    success: '✅ Payment confirmed',
+    failed: '❌ Payment failed or was cancelled',
+    timeout: '⚠️ No confirmation yet — check Live Payments in a moment',
+  };
 
   return (
     <AdminLayout title="Send Payment" pulse={pulse}>
@@ -72,8 +98,11 @@ export default function AdminSend() {
           {sending ? 'Sending...' : 'Send STK push'}
         </button>
 
-        {result && (
-          <p className={`resultMsg ${result.ok ? 'ok' : 'err'}`}>{result.message}</p>
+        {error && <p className="resultMsg err">{error}</p>}
+        {status && (
+          <p className={`resultMsg ${status === 'success' ? 'ok' : status === 'failed' ? 'err' : 'wait'}`}>
+            {statusText[status]}
+          </p>
         )}
       </form>
 
@@ -121,6 +150,7 @@ export default function AdminSend() {
         .resultMsg { font-size: 13px; margin: 14px 0 0; }
         .resultMsg.ok { color: #00ced1; }
         .resultMsg.err { color: #ff6b6b; }
+        .resultMsg.wait { color: #ffd700; }
       `}</style>
     </AdminLayout>
   );

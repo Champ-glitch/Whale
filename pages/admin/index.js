@@ -63,7 +63,7 @@ export default function AdminDashboard() {
               <p className="cardValue teal">{fmt(summary.savings)}</p>
             </div>
             <div className="card">
-              <p className="cardLabel">Net Worth</p>
+              <p className="cardLabel">Total Collected</p>
               <p className="cardValue">{fmt(summary.netWorth)}</p>
             </div>
             <div className="card">
