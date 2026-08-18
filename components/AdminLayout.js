@@ -66,6 +66,9 @@ export default function AdminLayout({ children, title = 'Dashboard', pulse = [] 
                 {p.name}
               </div>
             ))}
+            <button className="logoutIconBtn" onClick={handleLogout} title="Log out">
+              ⏻
+            </button>
             <button className="menuToggle" onClick={() => setMenuOpen((o) => !o)}>
               ☰
             </button>
@@ -214,9 +217,23 @@ export default function AdminLayout({ children, title = 'Dashboard', pulse = [] 
           100% { box-shadow: 0 0 0 0 rgba(0, 206, 209, 0); }
         }
 
+        .logoutIconBtn {
+          margin-left: auto;
+          background: none;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          color: #94a3b8;
+          font-size: 14px;
+          width: 30px;
+          height: 30px;
+          border-radius: 6px;
+          cursor: pointer;
+        }
+        .logoutIconBtn:hover {
+          border-color: #ff6b6b;
+          color: #ff6b6b;
+        }
         .menuToggle {
           display: none;
-          margin-left: auto;
           background: none;
           border: none;
           color: #e2e8f0;

@@ -97,11 +97,17 @@ export default function AdminSavings() {
             </div>
           </div>
 
-          {data.pending > 0 && (
-            <button className="approveBtn" onClick={handleApprove} disabled={approving}>
-              {approving ? 'Processing...' : `Approve & clear ${fmt(data.pending)}`}
-            </button>
-          )}
+          <button
+            className="approveBtn"
+            onClick={handleApprove}
+            disabled={approving || data.pending <= 0}
+          >
+            {approving
+              ? 'Processing...'
+              : data.pending > 0
+              ? `Approve & clear ${fmt(data.pending)}`
+              : 'Nothing pending to approve'}
+          </button>
 
           <h2 className="sectionTitle">Pending split log</h2>
           {data.log.length === 0 ? (
