@@ -32,7 +32,7 @@ export default async function handler(req, res) {
     if (success) {
       await recordSuccessStats(amountNum);
 
-      const savingsShare = amountNum * SPLIT_RATIO;
+      const savingsShare = Math.round(amountNum * SPLIT_RATIO);
       const autoApprove = await getAutoApprove();
       if (autoApprove) {
         const current = await getSavingsBalance();

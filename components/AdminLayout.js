@@ -11,6 +11,7 @@ const NAV_ITEMS = [
   { href: '/admin/deductions', label: 'Deductions', icon: '−' },
   { href: '/admin/savings', label: 'Savings Split', icon: '◑' },
   { href: '/admin/report', label: 'Weekly Report', icon: '▲' },
+  { href: '/admin/settings', label: 'Settings', icon: '⚙' },
 ];
 
 export default function AdminLayout({ children, title = 'Dashboard', pulse = [] }) {
