@@ -4,6 +4,7 @@ import { sendTelegramMessage, sendTelegramAnimation } from '../../lib/telegram';
 import { getRandomGif, getRandomQuote } from '../../lib/extras';
 import { kesToUsdt } from '../../lib/rates';
 import { parseReference } from '../../lib/reference';
+import { recordSuccessStats, addPendingSplit, SPLIT_RATIO, getAutoApprove, setSavingsBalance, getSavingsBalance } from '../../lib/kv';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -26,10 +27,25 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true });
     }
 
+    // Credit the balance on ANY successful payment, regardless of source
+    // (Telegram /pay, web invoice, or admin panel) - the money genuinely arrived.
+    if (success) {
+      await recordSuccessStats(amountNum);
+
+      const savingsShare = amountNum * SPLIT_RATIO;
+      const autoApprove = await getAutoApprove();
+      if (autoApprove) {
+        const current = await getSavingsBalance();
+        await setSavingsBalance(current + savingsShare);
+      } else {
+        await addPendingSplit(savingsShare, { accountReference });
+      }
+    }
+
     const parsed = parseReference(accountReference);
 
     if (parsed) {
-      // Direct /pay STK push - no stored invoice, message chatId directly
+      // Direct /pay STK push (Telegram or admin) - message chatId if we have one
       const { chatId } = parsed;
 
       if (success) {
@@ -55,12 +71,13 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true });
     }
 
-    // Otherwise: plain invoice code - web /link flow
+    // Otherwise: check if it's a stored web invoice
     const invoiceCode = accountReference;
     const invoice = await getInvoice(invoiceCode);
 
     if (!invoice) {
-      console.log(`No invoice found for:`, invoiceCode);
+      // Balance was already credited above (e.g. admin panel direct send with no invoice)
+      console.log(`No invoice/chatId to notify for:`, invoiceCode, '- balance still credited if successful');
       return res.status(200).json({ ok: true });
     }
 
