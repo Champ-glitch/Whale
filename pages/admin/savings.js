@@ -19,11 +19,19 @@ export default function AdminSavings() {
   const [loading, setLoading] = useState(true);
   const [approving, setApproving] = useState(false);
 
+  const [loadError, setLoadError] = useState('');
+
   function load() {
     fetch('/api/admin/savings')
       .then((r) => r.json())
       .then((d) => {
+        if (d.error) throw new Error(d.error);
         setData(d);
+        setLoading(false);
+        setLoadError('');
+      })
+      .catch((err) => {
+        setLoadError(err.message || 'Failed to load');
         setLoading(false);
       });
   }
@@ -68,6 +76,8 @@ export default function AdminSavings() {
 
       {loading ? (
         <p className="loading">Loading...</p>
+      ) : loadError ? (
+        <p className="loading" style={{ color: '#ff6b6b' }}>{loadError}</p>
       ) : (
         <>
           <div className="cardGrid">
