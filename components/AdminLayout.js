@@ -28,6 +28,7 @@ export default function AdminLayout({ children, title = 'Dashboard', pulse = [] 
         <title>{title} — WHALE_SYS Admin</title>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@1,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+        <meta name="robots" content="noindex, nofollow" />
       </Head>
 
       <div className="shell">
