@@ -469,6 +469,30 @@ export default function PayPage({ invoice, code }) {
   setIsProcessing(true);
 
   try {
+    const res = await fetch('/api/invoice-pay', {  // <-- 'res' is defined here
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        invoiceId: invoice.id,
+        phone: phone.replace(/\D/g, '')
+      })
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    
+    alert('Check your phone for M-PESA prompt 📱');
+    
+  } catch (err) {
+    alert('Payment failed: ' + err.message);
+  } finally {
+    setIsProcessing(false);
+  }
+}
+  
+  setIsProcessing(true);
+
+  try {
     const res = await fetch('/api/invoice-pay', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
