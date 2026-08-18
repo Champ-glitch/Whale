@@ -10,6 +10,8 @@ import {
   getBiggestOut,
   getWeeklySaved,
   getAutoApprove,
+  recordDailyBalanceSnapshot,
+  getRecentSnapshots,
 } from '../../../lib/kv';
 
 export default async function handler(req, res) {
@@ -41,7 +43,11 @@ export default async function handler(req, res) {
     const netWorth = main + savings;
     const goalProgress = savingsGoal ? Math.min(100, Math.round((savings / savingsGoal) * 100)) : null;
 
+    await recordDailyBalanceSnapshot();
+    const trend = await getRecentSnapshots(7);
+
     return res.status(200).json({
+      trend,
       main,
       savings,
       netWorth,
