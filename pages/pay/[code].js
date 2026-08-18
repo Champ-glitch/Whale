@@ -463,7 +463,7 @@ export default function PayPage({ invoice, code }) {
       const res = await fetch("/api/invoice-pay", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ invoiceId: invoice.id, phone: cleanPhone.replace(/\D/g, "") }),
+        body: JSON.stringify({ invoiceId: code, phone: cleanPhone.replace(/\D/g, "") }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Something went wrong");
