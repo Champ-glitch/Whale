@@ -14,6 +14,48 @@ function fmt(n) {
   return `KES ${Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 }
 
+function DonutChart({ segments, size = 180 }) {
+  const total = segments.reduce((sum, s) => sum + s.value, 0);
+  if (total <= 0) {
+    return (
+      <svg width={size} height={size} viewBox="0 0 100 100">
+        <circle cx="50" cy="50" r="40" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="14" />
+      </svg>
+    );
+  }
+
+  const radius = 40;
+  const circumference = 2 * Math.PI * radius;
+  let offset = 0;
+
+  return (
+    <svg width={size} height={size} viewBox="0 0 100 100">
+      <g transform="rotate(-90 50 50)">
+        {segments.map((seg, i) => {
+          const fraction = seg.value / total;
+          const dash = fraction * circumference;
+          const gap = circumference - dash;
+          const circle = (
+            <circle
+              key={i}
+              cx="50"
+              cy="50"
+              r={radius}
+              fill="none"
+              stroke={seg.color}
+              strokeWidth="14"
+              strokeDasharray={`${dash} ${gap}`}
+              strokeDashoffset={-offset}
+            />
+          );
+          offset += dash;
+          return circle;
+        })}
+      </g>
+    </svg>
+  );
+}
+
 export default function AdminReport() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -29,6 +71,15 @@ export default function AdminReport() {
 
   const pulse = [{ name: 'KV', ok: true }, { name: 'Telegram', ok: true }, { name: 'Makamesco', ok: true }];
   const maxCategory = data?.topCategories?.[0]?.amount || 1;
+
+  const segments = data
+    ? [
+        { label: 'Main', value: Math.max(0, data.main), color: '#ffd700' },
+        { label: 'Savings', value: Math.max(0, data.savings), color: '#00ced1' },
+        { label: 'Deducted', value: Math.max(0, data.totalDeducted), color: '#ff6b6b' },
+      ]
+    : [];
+  const segmentTotal = segments.reduce((sum, s) => sum + s.value, 0);
 
   return (
     <AdminLayout title="Weekly Report" pulse={pulse}>
@@ -53,6 +104,25 @@ export default function AdminReport() {
               <p className="cardLabel">All-Time Payments</p>
               <p className="cardValue">{data.stats.count}</p>
               <p className="cardSub">{data.stats.streak} day streak</p>
+            </div>
+          </div>
+
+          <div className="section">
+            <h2 className="sectionTitle">Distribution</h2>
+            <div className="card donutCard">
+              <DonutChart segments={segments} />
+              <div className="legend">
+                {segments.map((seg) => (
+                  <div key={seg.label} className="legendRow">
+                    <span className="legendDot" style={{ background: seg.color }} />
+                    <span className="legendLabel">{seg.label}</span>
+                    <span className="legendValue">{fmt(seg.value)}</span>
+                    <span className="legendPct">
+                      {segmentTotal > 0 ? Math.round((seg.value / segmentTotal) * 100) : 0}%
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -135,6 +205,29 @@ export default function AdminReport() {
           color: #94a3b8;
           margin: 0 0 12px;
         }
+        .donutCard {
+          display: flex;
+          align-items: center;
+          gap: 28px;
+          flex-wrap: wrap;
+        }
+        .legend {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          flex: 1;
+          min-width: 180px;
+        }
+        .legendRow {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 13px;
+        }
+        .legendDot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+        .legendLabel { color: #e2e8f0; flex: 1; }
+        .legendValue { color: #94a3b8; }
+        .legendPct { color: #e2e8f0; font-weight: 600; width: 36px; text-align: right; }
         .goalRow { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 10px; }
         .teal { color: #00ced1; }
         .progressTrack {

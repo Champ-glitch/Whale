@@ -4,7 +4,7 @@ import { sendTelegramMessage, sendTelegramAnimation } from '../../lib/telegram';
 import { getRandomGif, getRandomQuote } from '../../lib/extras';
 import { kesToUsdt } from '../../lib/rates';
 import { parseReference } from '../../lib/reference';
-import { recordSuccessStats, addPendingSplit, SPLIT_RATIO, getAutoApprove, setSavingsBalance, getSavingsBalance, updateAdminPaymentStatus } from '../../lib/kv';
+import { recordSuccessStats, addPendingSplit, SPLIT_RATIO, getAutoApprove, setSavingsBalance, getSavingsBalance, updateAdminPaymentStatus, addWeeklySaved } from '../../lib/kv';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -37,6 +37,7 @@ export default async function handler(req, res) {
       if (autoApprove) {
         const current = await getSavingsBalance();
         await setSavingsBalance(current + savingsShare);
+        await addWeeklySaved(savingsShare);
       } else {
         await addPendingSplit(savingsShare, { accountReference });
       }
