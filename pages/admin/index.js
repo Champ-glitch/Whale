@@ -19,7 +19,7 @@ export default function AdminDashboard() {
   const [health, setHealth] = useState({ kv: true, telegram: true, makamesco: true });
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  function load() {
     Promise.all([
       fetch('/api/admin/summary').then((r) => r.json()),
       fetch('/api/admin/health').then((r) => r.json()),
@@ -28,6 +28,12 @@ export default function AdminDashboard() {
       setHealth(h);
       setLoading(false);
     });
+  }
+
+  useEffect(() => {
+    load();
+    const interval = setInterval(load, 15000);
+    return () => clearInterval(interval);
   }, []);
 
   const pulse = [

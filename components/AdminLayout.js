@@ -10,6 +10,7 @@ const NAV_ITEMS = [
   { href: '/admin/send', label: 'Send Payment', icon: '➤' },
   { href: '/admin/deductions', label: 'Deductions', icon: '−' },
   { href: '/admin/savings', label: 'Savings Split', icon: '◑' },
+  { href: '/admin/report', label: 'Weekly Report', icon: '▲' },
 ];
 
 export default function AdminLayout({ children, title = 'Dashboard', pulse = [] }) {

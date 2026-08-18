@@ -30,13 +30,19 @@ export default function AdminPayments() {
   const [filter, setFilter] = useState('all');
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  function load() {
     fetch('/api/admin/payments')
       .then((r) => r.json())
       .then((data) => {
         setPayments(data.payments || []);
         setLoading(false);
       });
+  }
+
+  useEffect(() => {
+    load();
+    const interval = setInterval(load, 15000);
+    return () => clearInterval(interval);
   }, []);
 
   const filtered = payments.filter((p) => filter === 'all' || p.status === filter);

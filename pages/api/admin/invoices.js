@@ -42,5 +42,20 @@ export default async function handler(req, res) {
     }
   }
 
+  if (req.method === 'PATCH') {
+    const { code, status } = req.body;
+    if (!code || !['failed', 'pending', 'success'].includes(status)) {
+      return res.status(400).json({ error: 'Invalid code or status' });
+    }
+    try {
+      const { updateInvoiceStatus } = await import('../../../lib/kv');
+      await updateInvoiceStatus(code, status);
+      return res.status(200).json({ ok: true });
+    } catch (err) {
+      console.error('admin/invoices PATCH error:', err);
+      return res.status(500).json({ error: 'Failed to update invoice' });
+    }
+  }
+
   return res.status(405).end();
 }
