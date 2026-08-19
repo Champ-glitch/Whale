@@ -1,6 +1,18 @@
 // pages/admin/index.js
 import { useEffect, useState, useRef } from 'react';
-import AdminLayout from '../../components/AdminLayout';
+import Head from 'next/head';
+import {
+  TrendingUp,
+  Wallet,
+  PiggyBank,
+  ArrowLeftRight,
+  Bell,
+  BellOff,
+  Plus,
+  FileText,
+  ArrowDownCircle,
+  ArrowUpCircle,
+} from 'lucide-react';
 import { isAuthenticated } from '../../lib/adminAuth';
 
 export async function getServerSideProps({ req }) {
@@ -25,28 +37,15 @@ function timeAgo(ts) {
   return `${Math.floor(hrs / 24)}d ago`;
 }
 
-function Sparkline({ trend }) {
-  const values = trend.map((t) => t.total).filter((v) => v !== null);
-  if (values.length < 2) return null;
-  const max = Math.max(...values);
-  const min = Math.min(...values);
-  const range = max - min || 1;
-  const width = 100;
-  const height = 28;
-  const step = width / (trend.length - 1);
-  const points = trend.map((t, i) => {
-    const v = t.total === null ? min : t.total;
-    return `${i * step},${height - ((v - min) / range) * height}`;
-  });
-  return (
-    <svg width="100%" height="28" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" className="spark">
-      <polyline points={points.join(' ')} fill="none" stroke="#ffd700" strokeWidth="2" />
-    </svg>
-  );
-}
-
 const LAST_COUNT_KEY = 'whale_admin_last_count';
 const ARMED_KEY = 'whale_admin_alerts_armed';
+
+const NAV_ITEMS = [
+  { href: '/admin', label: 'Home' },
+  { href: '/admin/report', label: 'Analytics' },
+  { href: '/admin/payments', label: 'Payments' },
+  { href: '/admin/savings', label: 'Savings' },
+];
 
 export default function AdminDashboard() {
   const [summary, setSummary] = useState(null);
@@ -58,9 +57,6 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     if (sessionStorage.getItem(ARMED_KEY) === '1') setArmed(true);
-    if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
-      // permission requested on arm tap, not here
-    }
   }, []);
 
   function unlockAudioAndArm() {
@@ -132,274 +128,204 @@ export default function AdminDashboard() {
     return () => clearInterval(interval);
   }, [armed]);
 
-  const pulse = [
-    { name: 'KV', ok: health.kv },
-    { name: 'Telegram', ok: health.telegram },
-    { name: 'Makamesco', ok: health.makamesco },
-  ];
-
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
 
   return (
-    <AdminLayout title="Dashboard" pulse={pulse}>
-      {toast && <div className="toast">🔔 {toast}</div>}
+    <>
+      <Head>
+        <title>Dashboard — WHALE_SYS Admin</title>
+        <meta name="robots" content="noindex, nofollow" />
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#0a1628" />
+      </Head>
 
-      {loading ? (
-        <p className="loading">Loading...</p>
-      ) : (
-        <>
-          <div className="header">
-            <div>
-              <p className="greeting">{greeting}, Whale</p>
-              <p className="greetSub">Here's your financial overview</p>
-            </div>
-            {!armed ? (
-              <button className="bellBtn" onClick={unlockAudioAndArm} title="Enable payment alerts">🔕</button>
-            ) : (
-              <button className="bellBtn armed" title="Listening for payments">🔔</button>
-            )}
+      <div className="min-h-screen bg-[#0B0F1A] relative overflow-hidden">
+        <div className="pointer-events-none absolute -top-24 -left-24 w-72 h-72 rounded-full bg-blue-500/10 blur-3xl" />
+        <div className="pointer-events-none absolute -top-16 -right-16 w-64 h-64 rounded-full bg-yellow-400/10 blur-3xl" />
+
+        <div className="relative max-w-[428px] mx-auto px-4 pt-4 pb-28">
+          <div className="flex items-center gap-4 mb-4 text-xs text-slate-400">
+            {[
+              { name: 'KV', ok: health.kv },
+              { name: 'Telegram', ok: health.telegram },
+              { name: 'Makamesco', ok: health.makamesco },
+            ].map((p) => (
+              <div key={p.name} className="flex items-center gap-1.5">
+                <span className={`w-1.5 h-1.5 rounded-full ${p.ok ? 'bg-teal-400 animate-pulse' : 'bg-red-500'}`} />
+                {p.name}
+              </div>
+            ))}
+            <a href="/admin/invoices" className="ml-auto text-slate-400 hover:text-yellow-400">Invoices</a>
+            <a href="/admin/deductions" className="text-slate-400 hover:text-yellow-400">Deductions</a>
+            <a href="/admin/settings" className="text-slate-400 hover:text-yellow-400">⚙</a>
           </div>
 
-          <div className="statGrid">
-            <div className="glassCard hero">
-              <div className="cardIcon gold">↗</div>
-              <p className="statLabel">Total Collected</p>
-              <p className="statValue gold">{fmt(summary.netWorth)}</p>
-              <Sparkline trend={summary.trend} />
+          {toast && (
+            <div className="fixed top-4 left-4 right-4 max-w-[400px] mx-auto z-50 bg-[#0a1628] border border-teal-400 text-slate-100 text-sm px-4 py-3 rounded-xl shadow-2xl">
+              🔔 {toast}
             </div>
-            <div className="glassCard">
-              <div className="cardIcon blue">💰</div>
-              <p className="statLabel">Main Balance</p>
-              <p className="statValue">{fmt(summary.main)}</p>
-              <p className="statHint">Available now</p>
-            </div>
-            <div className="glassCard">
-              <div className="cardIcon teal">🐷</div>
-              <p className="statLabel">Savings</p>
-              <p className="statValue teal">{fmt(summary.savings)}</p>
-              <p className="statHint">{summary.goalProgress !== null ? `${summary.goalProgress}% of goal` : 'No goal set'}</p>
-            </div>
-            <div className="glassCard">
-              <div className="cardIcon coral">⇄</div>
-              <p className="statLabel">Pending Split</p>
-              <p className="statValue coral">{fmt(summary.pendingSplit)}</p>
-              <p className="statHint">{summary.pendingSplit > 0 ? 'Awaiting approval' : 'Nothing pending'}</p>
-            </div>
-          </div>
-
-          <div className="actionRow">
-            <a href="/admin/send" className="actionBtn primary">＋ Request Payment</a>
-            <a href="/admin/invoices" className="actionBtn outline">▤ Create Invoice</a>
-          </div>
-
-          {summary.pendingSplit > 0 && (
-            <a href="/admin/savings" className="approveStrip">
-              ◑ Approve Split — {fmt(summary.pendingSplit)}
-            </a>
           )}
 
-          <div className="section">
-            <div className="sectionHead">
-              <h2 className="sectionTitle">Recent Activity</h2>
-              <a href="/admin/payments" className="seeAll">See all →</a>
+          <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center gap-2">
+              <span className="text-2xl">🐋</span>
+              <h1 className="text-xl font-bold">
+                <span className="text-white">Whale </span>
+                <span className="bg-gradient-to-r from-blue-400 to-yellow-400 bg-clip-text text-transparent">
+                  Enterprise
+                </span>
+              </h1>
             </div>
-
-            {summary.recentActivity.length === 0 ? (
-              <p className="muted">No activity yet.</p>
-            ) : (
-              <div className="activityList">
-                {summary.recentActivity.map((a, i) => (
-                  <div key={i} className="activityRow">
-                    <div className={`activityIcon ${a.type}`}>{a.type === 'in' ? '↓' : '↑'}</div>
-                    <div className="activityMain">
-                      <p className="activityLabel">{a.label || (a.type === 'in' ? 'Payment received' : 'Deduction')}</p>
-                      <p className="activityTime">{timeAgo(a.at)}</p>
-                    </div>
-                    <span className={`activityAmount ${a.type}`}>
-                      {a.type === 'in' ? '+' : '−'}{fmt(a.amount)}
-                    </span>
-                  </div>
-                ))}
+            <div className="flex items-center gap-3">
+              <button
+                onClick={unlockAudioAndArm}
+                className={`w-9 h-9 rounded-full flex items-center justify-center border ${
+                  armed ? 'border-teal-400 bg-teal-400/10 text-teal-400' : 'border-white/10 bg-white/5 text-slate-400'
+                }`}
+                title="Payment alerts"
+              >
+                {armed ? <Bell size={16} /> : <BellOff size={16} />}
+              </button>
+              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-yellow-400 flex items-center justify-center text-[#0B0F1A] font-bold text-sm">
+                W
               </div>
-            )}
+            </div>
           </div>
 
-          <p className="statusLine">
-            {summary.autoApprove ? 'Auto-approve is ON' : 'Auto-approve is OFF — savings clears via Approve Split'}
-          </p>
-        </>
-      )}
+          <p className="text-lg font-serif italic text-white mt-3">{greeting}, Whale</p>
+          <p className="text-sm text-slate-400 mb-6">Here's your financial overview</p>
 
-      <style jsx>{`
-        .loading { color: #94a3b8; }
+          {loading ? (
+            <p className="text-slate-400 text-sm">Loading...</p>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 gap-3 mb-6">
+                <GlassCard
+                  icon={<TrendingUp size={18} className="text-yellow-400" />}
+                  iconBg="bg-gradient-to-br from-yellow-400/20 to-yellow-600/10"
+                  label="Total Collected"
+                  value={fmt(summary.netWorth)}
+                  sub="This week"
+                  subClass="text-yellow-400"
+                />
+                <GlassCard
+                  icon={<Wallet size={18} className="text-blue-400" />}
+                  iconBg="bg-gradient-to-br from-blue-400/20 to-blue-600/10"
+                  label="Main Balance"
+                  value={fmt(summary.main)}
+                  sub="Available now"
+                  subClass="text-blue-400"
+                />
+                <GlassCard
+                  icon={<PiggyBank size={18} className="text-teal-400" />}
+                  iconBg="bg-gradient-to-br from-teal-400/20 to-teal-600/10"
+                  label="Savings"
+                  value={fmt(summary.savings)}
+                  sub={summary.goalProgress !== null ? `${summary.goalProgress}% of goal` : 'No goal set'}
+                  subClass="text-yellow-400"
+                />
+                <GlassCard
+                  icon={<ArrowLeftRight size={18} className="text-orange-400" />}
+                  iconBg="bg-gradient-to-br from-orange-400/20 to-red-500/10"
+                  label="Pending Split"
+                  value={fmt(summary.pendingSplit)}
+                  sub={summary.pendingSplit > 0 ? 'Awaiting approval' : 'Nothing pending'}
+                  subClass="text-orange-400"
+                />
+              </div>
 
-        .toast {
-          position: fixed;
-          top: 70px;
-          right: 16px;
-          left: 16px;
-          max-width: 320px;
-          margin-left: auto;
-          background: #0a1628;
-          border: 1px solid #00ced1;
-          color: #e2e8f0;
-          padding: 12px 16px;
-          border-radius: 10px;
-          font-size: 13px;
-          z-index: 50;
-          box-shadow: 0 4px 16px rgba(0,0,0,0.4);
-        }
+              <div className="flex gap-3 mb-8">
+                <a
+                  href="/admin/send"
+                  className="flex-1 flex items-center justify-center gap-1.5 rounded-full py-3.5 text-sm font-bold bg-gradient-to-r from-blue-500 to-yellow-400 text-[#0B0F1A]"
+                >
+                  <Plus size={16} /> Request Payment
+                </a>
+                <a
+                  href="/admin/invoices"
+                  className="flex-1 flex items-center justify-center gap-1.5 rounded-full py-3.5 text-sm font-bold border-2 border-yellow-400 text-yellow-400"
+                >
+                  <FileText size={16} /> Create Invoice
+                </a>
+              </div>
 
-        .header {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-          margin-bottom: 20px;
-        }
-        .greeting {
-          font-family: 'Playfair Display', serif;
-          font-style: italic;
-          font-size: 22px;
-          font-weight: 700;
-          color: #fff;
-          margin: 0;
-        }
-        .greetSub { font-size: 13px; color: #94a3b8; margin: 4px 0 0; }
-        .bellBtn {
-          width: 38px;
-          height: 38px;
-          border-radius: 50%;
-          background: rgba(255,255,255,0.05);
-          border: 1px solid rgba(255,255,255,0.1);
-          font-size: 16px;
-          cursor: pointer;
-        }
-        .bellBtn.armed { border-color: #00ced1; background: rgba(0,206,209,0.1); }
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-white font-bold text-base">Recent Transactions</h2>
+                <a href="/admin/payments" className="text-yellow-400 text-xs font-medium flex items-center gap-1">
+                  See all <span>→</span>
+                </a>
+              </div>
 
-        .statGrid {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 12px;
-          margin-bottom: 20px;
-        }
-        .glassCard {
-          background: rgba(255,255,255,0.04);
-          backdrop-filter: blur(20px);
-          -webkit-backdrop-filter: blur(20px);
-          border: 1px solid rgba(255,255,255,0.08);
-          border-radius: 18px;
-          padding: 18px;
-          position: relative;
-          overflow: hidden;
-        }
-        .glassCard.hero {
-          grid-column: 1 / -1;
-          background: linear-gradient(135deg, rgba(255,215,0,0.08), rgba(0,206,209,0.05));
-          border-color: rgba(255,215,0,0.2);
-        }
-        .cardIcon {
-          width: 34px;
-          height: 34px;
-          border-radius: 10px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 15px;
-          margin-bottom: 10px;
-        }
-        .cardIcon.gold { background: linear-gradient(135deg, #ffd700, #b8860b); color: #0a1628; }
-        .cardIcon.blue { background: linear-gradient(135deg, #3b82f6, #1e40af); }
-        .cardIcon.teal { background: linear-gradient(135deg, #00ced1, #087f8c); }
-        .cardIcon.coral { background: linear-gradient(135deg, #ff6b6b, #b91c1c); }
-        .statLabel { font-size: 12px; color: #94a3b8; margin: 0 0 6px; }
-        .statValue { font-size: 20px; font-weight: 800; color: #fff; margin: 0; }
-        .statValue.gold { color: #ffd700; font-size: 26px; }
-        .statValue.teal { color: #00ced1; }
-        .statValue.coral { color: #ff6b6b; }
-        .statHint { font-size: 11px; color: #94a3b8; margin: 6px 0 0; }
-        .spark { margin-top: 10px; display: block; }
+              {summary.recentActivity.length === 0 ? (
+                <p className="text-slate-400 text-sm">No activity yet.</p>
+              ) : (
+                <div className="flex flex-col gap-2 mb-4">
+                  {summary.recentActivity.map((a, i) => (
+                    <div
+                      key={i}
+                      className="flex items-center gap-3 bg-white/[0.03] border border-white/[0.06] rounded-2xl px-4 py-3"
+                    >
+                      <div
+                        className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${
+                          a.type === 'in' ? 'bg-teal-400/15 text-teal-400' : 'bg-red-500/15 text-red-400'
+                        }`}
+                      >
+                        {a.type === 'in' ? <ArrowDownCircle size={16} /> : <ArrowUpCircle size={16} />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-slate-100 truncate">
+                          {a.label || (a.type === 'in' ? 'Payment received' : 'Deduction')}
+                        </p>
+                        <p className="text-xs text-slate-500">{timeAgo(a.at)}</p>
+                      </div>
+                      <span className={`text-sm font-bold ${a.type === 'in' ? 'text-green-400' : 'text-red-400'}`}>
+                        {a.type === 'in' ? '+' : '−'}{fmt(a.amount)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
 
-        .actionRow {
-          display: flex;
-          gap: 10px;
-          margin-bottom: 14px;
-        }
-        .actionBtn {
-          flex: 1;
-          text-align: center;
-          padding: 14px;
-          border-radius: 14px;
-          font-size: 14px;
-          font-weight: 700;
-          text-decoration: none;
-        }
-        .actionBtn.primary {
-          background: linear-gradient(135deg, #ffd700, #f0b400);
-          color: #0a1628;
-        }
-        .actionBtn.outline {
-          background: rgba(255,255,255,0.03);
-          border: 1px solid rgba(255,215,0,0.4);
-          color: #ffd700;
-        }
+              <p className="text-xs text-slate-500 text-center mt-4">
+                {summary.autoApprove ? 'Auto-approve is ON' : 'Auto-approve is OFF — savings clears via Approve Split'}
+              </p>
+            </>
+          )}
+        </div>
 
-        .approveStrip {
-          display: block;
-          text-align: center;
-          background: rgba(255,107,107,0.08);
-          border: 1px solid rgba(255,107,107,0.3);
-          color: #ff6b6b;
-          padding: 12px;
-          border-radius: 12px;
-          font-size: 13px;
-          font-weight: 600;
-          text-decoration: none;
-          margin-bottom: 24px;
-        }
+        <div className="fixed bottom-0 left-0 right-0 bg-[#0B0F1A]/95 backdrop-blur-xl border-t border-white/10">
+          <div className="max-w-[428px] mx-auto flex justify-around py-2 px-2">
+            {NAV_ITEMS.map((item, i) => (
+              <a
+                key={item.href}
+                href={item.href}
+                className={`flex-1 flex flex-col items-center gap-1 py-2 mx-1 rounded-xl text-xs font-medium ${
+                  i === 0
+                    ? 'bg-gradient-to-r from-blue-500 to-yellow-400 text-[#0B0F1A]'
+                    : 'text-slate-400'
+                }`}
+              >
+                {item.label}
+              </a>
+            ))}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
 
-        .section { margin-bottom: 20px; }
-        .sectionHead {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 12px;
-        }
-        .sectionTitle { font-size: 16px; font-weight: 700; color: #fff; margin: 0; }
-        .seeAll { font-size: 12px; color: #ffd700; text-decoration: none; }
-        .muted { color: #94a3b8; font-size: 13px; }
-
-        .activityList { display: flex; flex-direction: column; gap: 8px; }
-        .activityRow {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          background: rgba(255,255,255,0.03);
-          border: 1px solid rgba(255,255,255,0.06);
-          border-radius: 14px;
-          padding: 12px 14px;
-        }
-        .activityIcon {
-          width: 34px;
-          height: 34px;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 14px;
-          flex-shrink: 0;
-        }
-        .activityIcon.in { background: rgba(0,206,209,0.15); color: #00ced1; }
-        .activityIcon.out { background: rgba(255,107,107,0.15); color: #ff6b6b; }
-        .activityMain { flex: 1; min-width: 0; }
-        .activityLabel { font-size: 13px; color: #e2e8f0; margin: 0; }
-        .activityTime { font-size: 11px; color: #94a3b8; margin: 2px 0 0; }
-        .activityAmount { font-size: 13px; font-weight: 700; }
-        .activityAmount.in { color: #00ced1; }
-        .activityAmount.out { color: #ff6b6b; }
-
-        .statusLine { font-size: 12px; color: #94a3b8; text-align: center; margin: 8px 0 0; }
-      `}</style>
-    </AdminLayout>
+function GlassCard({ icon, iconBg, label, value, sub, subClass }) {
+  return (
+    <div className="relative bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl p-4 overflow-hidden">
+      <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-white/[0.04] to-transparent pointer-events-none" />
+      <div className={`relative w-9 h-9 rounded-xl flex items-center justify-center mb-3 ${iconBg}`}>
+        {icon}
+      </div>
+      <p className="relative text-xs text-slate-400 mb-1">{label}</p>
+      <p className="relative text-lg font-bold text-white leading-tight">{value}</p>
+      <p className={`relative text-xs mt-1 ${subClass}`}>{sub}</p>
+    </div>
   );
 }
