@@ -14,27 +14,32 @@ function fmt(n) {
   return `KES ${Number(n || 0).toLocaleString()}`;
 }
 
+function timeAgo(ts) {
+  if (!ts) return '';
+  const diff = Date.now() - ts;
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
+
 function Sparkline({ trend }) {
   const values = trend.map((t) => t.total).filter((v) => v !== null);
-  if (values.length < 2) {
-    return <div className="sparkEmpty">Not enough history yet</div>;
-  }
+  if (values.length < 2) return null;
   const max = Math.max(...values);
   const min = Math.min(...values);
   const range = max - min || 1;
-  const width = 280;
-  const height = 48;
+  const width = 100;
+  const height = 28;
   const step = width / (trend.length - 1);
-
   const points = trend.map((t, i) => {
     const v = t.total === null ? min : t.total;
-    const x = i * step;
-    const y = height - ((v - min) / range) * height;
-    return `${x},${y}`;
+    return `${i * step},${height - ((v - min) / range) * height}`;
   });
-
   return (
-    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="sparkSvg">
+    <svg width="100%" height="28" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" className="spark">
       <polyline points={points.join(' ')} fill="none" stroke="#ffd700" strokeWidth="2" />
     </svg>
   );
@@ -49,15 +54,12 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState(null);
   const [armed, setArmed] = useState(false);
-  const [notifPermission, setNotifPermission] = useState('default');
   const audioCtxRef = useRef(null);
 
   useEffect(() => {
-    if (sessionStorage.getItem(ARMED_KEY) === '1') {
-      setArmed(true);
-    }
-    if (typeof Notification !== 'undefined') {
-      setNotifPermission(Notification.permission);
+    if (sessionStorage.getItem(ARMED_KEY) === '1') setArmed(true);
+    if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+      // permission requested on arm tap, not here
     }
   }, []);
 
@@ -65,7 +67,6 @@ export default function AdminDashboard() {
     try {
       const ctx = new (window.AudioContext || window.webkitAudioContext)();
       audioCtxRef.current = ctx;
-      // Silent primer tone to satisfy the browser's user-gesture requirement
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       gain.gain.value = 0;
@@ -74,11 +75,9 @@ export default function AdminDashboard() {
       osc.start();
       osc.stop(ctx.currentTime + 0.01);
     } catch {}
-
     if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
-      Notification.requestPermission().then(setNotifPermission);
+      Notification.requestPermission();
     }
-
     sessionStorage.setItem(ARMED_KEY, '1');
     setArmed(true);
   }
@@ -105,15 +104,8 @@ export default function AdminDashboard() {
     playChime();
     setToast(message);
     setTimeout(() => setToast(null), 5000);
-
-    if (
-      typeof Notification !== 'undefined' &&
-      Notification.permission === 'granted' &&
-      document.hidden
-    ) {
-      try {
-        new Notification('WHALE_SYS', { body: message, icon: '/icons/icon-192.png' });
-      } catch {}
+    if (typeof Notification !== 'undefined' && Notification.permission === 'granted' && document.hidden) {
+      try { new Notification('WHALE_SYS', { body: message, icon: '/icons/icon-192.png' }); } catch {}
     }
   }
 
@@ -122,14 +114,11 @@ export default function AdminDashboard() {
       fetch('/api/admin/summary').then((r) => r.json()),
       fetch('/api/admin/health').then((r) => r.json()),
     ]).then(([s, h]) => {
-      const storedCount = sessionStorage.getItem(LAST_COUNT_KEY);
-      const lastCount = storedCount !== null ? Number(storedCount) : null;
-
+      const stored = sessionStorage.getItem(LAST_COUNT_KEY);
+      const lastCount = stored !== null ? Number(stored) : null;
       if (armed && lastCount !== null && s.stats.count > lastCount) {
-        const diff = s.stats.count - lastCount;
-        notify(`New payment received — ${diff} confirmed`);
+        notify(`New payment received — ${s.stats.count - lastCount} confirmed`);
       }
-
       sessionStorage.setItem(LAST_COUNT_KEY, String(s.stats.count));
       setSummary(s);
       setHealth(h);
@@ -149,95 +138,91 @@ export default function AdminDashboard() {
     { name: 'Makamesco', ok: health.makamesco },
   ];
 
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+
   return (
     <AdminLayout title="Dashboard" pulse={pulse}>
       {toast && <div className="toast">🔔 {toast}</div>}
-
-      {!armed ? (
-        <button className="armBar" onClick={unlockAudioAndArm}>
-          🔕 Tap to enable payment alerts (sound + notification)
-        </button>
-      ) : (
-        <div className="armedBar">
-          <span className="armedDot" />
-          Listening for payments
-          {notifPermission === 'denied' && (
-            <span className="armedWarn"> · notifications blocked in browser settings</span>
-          )}
-        </div>
-      )}
 
       {loading ? (
         <p className="loading">Loading...</p>
       ) : (
         <>
-          <div className="heroCard">
-            <p className="heroLabel">Total Collected</p>
-            <p className="heroValue">{fmt(summary.netWorth)}</p>
-            <Sparkline trend={summary.trend} />
-            <p className="heroCaption">Last 7 days</p>
+          <div className="header">
+            <div>
+              <p className="greeting">{greeting}, Whale</p>
+              <p className="greetSub">Here's your financial overview</p>
+            </div>
+            {!armed ? (
+              <button className="bellBtn" onClick={unlockAudioAndArm} title="Enable payment alerts">🔕</button>
+            ) : (
+              <button className="bellBtn armed" title="Listening for payments">🔔</button>
+            )}
           </div>
 
-          <div className="tileRow">
-            <div className="tile">
-              <p className="tileLabel">Main</p>
-              <p className="tileValue">{fmt(summary.main)}</p>
+          <div className="statGrid">
+            <div className="glassCard hero">
+              <div className="cardIcon gold">↗</div>
+              <p className="statLabel">Total Collected</p>
+              <p className="statValue gold">{fmt(summary.netWorth)}</p>
+              <Sparkline trend={summary.trend} />
             </div>
-            <div className="tile">
-              <p className="tileLabel">Savings</p>
-              <p className="tileValue teal">{fmt(summary.savings)}</p>
+            <div className="glassCard">
+              <div className="cardIcon blue">💰</div>
+              <p className="statLabel">Main Balance</p>
+              <p className="statValue">{fmt(summary.main)}</p>
+              <p className="statHint">Available now</p>
             </div>
-            <div className="tile">
-              <p className="tileLabel">Pending Split</p>
-              <p className="tileValue coral">{fmt(summary.pendingSplit)}</p>
+            <div className="glassCard">
+              <div className="cardIcon teal">🐷</div>
+              <p className="statLabel">Savings</p>
+              <p className="statValue teal">{fmt(summary.savings)}</p>
+              <p className="statHint">{summary.goalProgress !== null ? `${summary.goalProgress}% of goal` : 'No goal set'}</p>
+            </div>
+            <div className="glassCard">
+              <div className="cardIcon coral">⇄</div>
+              <p className="statLabel">Pending Split</p>
+              <p className="statValue coral">{fmt(summary.pendingSplit)}</p>
+              <p className="statHint">{summary.pendingSplit > 0 ? 'Awaiting approval' : 'Nothing pending'}</p>
             </div>
           </div>
 
-          <div className="quickActions">
-            <a href="/admin/send" className="actionBtn primary">➤ Request Payment</a>
-            <a href="/admin/invoices" className="actionBtn">▤ Create Invoice</a>
-            <a href="/admin/savings" className="actionBtn">
-              ◑ Approve Split{summary.pendingSplit > 0 ? ` (${fmt(summary.pendingSplit)})` : ''}
+          <div className="actionRow">
+            <a href="/admin/send" className="actionBtn primary">＋ Request Payment</a>
+            <a href="/admin/invoices" className="actionBtn outline">▤ Create Invoice</a>
+          </div>
+
+          {summary.pendingSplit > 0 && (
+            <a href="/admin/savings" className="approveStrip">
+              ◑ Approve Split — {fmt(summary.pendingSplit)}
             </a>
-          </div>
-
-          {summary.savingsGoal && (
-            <div className="section">
-              <div className="goalCard">
-                <div className="goalRow">
-                  <span className="goalLabel">Savings goal</span>
-                  <span className="teal">{summary.goalProgress}%</span>
-                </div>
-                <div className="progressTrack">
-                  <div className="progressFill" style={{ width: `${summary.goalProgress}%` }} />
-                </div>
-                <p className="goalSub">{fmt(summary.savings)} of {fmt(summary.savingsGoal)}</p>
-              </div>
-            </div>
           )}
 
           <div className="section">
-            <h2 className="sectionTitle">This week</h2>
-            <div className="cardGrid">
-              <div className="card">
-                <p className="cardLabel">Saved This Week</p>
-                <p className="cardValue">{fmt(summary.weeklySaved)}</p>
-              </div>
-              <div className="card">
-                <p className="cardLabel">All-Time Received</p>
-                <p className="cardValue">{fmt(summary.stats.total)}</p>
-                <p className="cardSub">{summary.stats.count} payments · {summary.stats.streak} day streak</p>
-              </div>
-              <div className="card">
-                <p className="cardLabel">Biggest In</p>
-                <p className="cardValue">{fmt(summary.biggestIn)}</p>
-              </div>
-              <div className="card">
-                <p className="cardLabel">Biggest Out</p>
-                <p className="cardValue">{fmt(summary.biggestOut.amount)}</p>
-                <p className="cardSub">{summary.biggestOut.reason || 'No deductions yet'}</p>
-              </div>
+            <div className="sectionHead">
+              <h2 className="sectionTitle">Recent Activity</h2>
+              <a href="/admin/payments" className="seeAll">See all →</a>
             </div>
+
+            {summary.recentActivity.length === 0 ? (
+              <p className="muted">No activity yet.</p>
+            ) : (
+              <div className="activityList">
+                {summary.recentActivity.map((a, i) => (
+                  <div key={i} className="activityRow">
+                    <div className={`activityIcon ${a.type}`}>{a.type === 'in' ? '↓' : '↑'}</div>
+                    <div className="activityMain">
+                      <p className="activityLabel">{a.label || (a.type === 'in' ? 'Payment received' : 'Deduction')}</p>
+                      <p className="activityTime">{timeAgo(a.at)}</p>
+                    </div>
+                    <span className={`activityAmount ${a.type}`}>
+                      {a.type === 'in' ? '+' : '−'}{fmt(a.amount)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <p className="statusLine">
@@ -248,43 +233,6 @@ export default function AdminDashboard() {
 
       <style jsx>{`
         .loading { color: #94a3b8; }
-
-        .armBar {
-          width: 100%;
-          background: rgba(255, 215, 0, 0.08);
-          border: 1px solid rgba(255, 215, 0, 0.3);
-          color: #ffd700;
-          padding: 12px 14px;
-          border-radius: 10px;
-          font-size: 13px;
-          font-weight: 600;
-          cursor: pointer;
-          font-family: inherit;
-          margin-bottom: 16px;
-          text-align: center;
-        }
-        .armedBar {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          font-size: 12px;
-          color: #94a3b8;
-          margin-bottom: 16px;
-        }
-        .armedDot {
-          width: 7px;
-          height: 7px;
-          border-radius: 50%;
-          background: #00ced1;
-          animation: pulseDot 2s infinite;
-          flex-shrink: 0;
-        }
-        .armedWarn { color: #ff6b6b; }
-        @keyframes pulseDot {
-          0% { box-shadow: 0 0 0 0 rgba(0, 206, 209, 0.5); }
-          70% { box-shadow: 0 0 0 6px rgba(0, 206, 209, 0); }
-          100% { box-shadow: 0 0 0 0 rgba(0, 206, 209, 0); }
-        }
 
         .toast {
           position: fixed;
@@ -303,119 +251,152 @@ export default function AdminDashboard() {
           box-shadow: 0 4px 16px rgba(0,0,0,0.4);
         }
 
-        .heroCard {
-          background: linear-gradient(135deg, #0a1628 0%, #0d1d33 100%);
-          border: 1px solid rgba(255, 215, 0, 0.15);
-          border-radius: 16px;
-          padding: 28px 24px;
-          margin-bottom: 16px;
+        .header {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          margin-bottom: 20px;
         }
-        .heroLabel {
-          font-size: 13px;
-          text-transform: uppercase;
-          letter-spacing: 0.6px;
-          color: #94a3b8;
-          margin: 0 0 6px;
-        }
-        .heroValue {
+        .greeting {
           font-family: 'Playfair Display', serif;
           font-style: italic;
-          font-size: 40px;
+          font-size: 22px;
           font-weight: 700;
-          color: #ffd700;
-          margin: 0 0 16px;
+          color: #fff;
+          margin: 0;
         }
-        .sparkSvg { display: block; width: 100%; height: 48px; }
-        .sparkEmpty { color: #94a3b8; font-size: 12px; height: 48px; display: flex; align-items: center; }
-        .heroCaption { font-size: 11px; color: #94a3b8; margin: 8px 0 0; }
+        .greetSub { font-size: 13px; color: #94a3b8; margin: 4px 0 0; }
+        .bellBtn {
+          width: 38px;
+          height: 38px;
+          border-radius: 50%;
+          background: rgba(255,255,255,0.05);
+          border: 1px solid rgba(255,255,255,0.1);
+          font-size: 16px;
+          cursor: pointer;
+        }
+        .bellBtn.armed { border-color: #00ced1; background: rgba(0,206,209,0.1); }
 
-        .tileRow {
+        .statGrid {
           display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 10px;
-          margin-bottom: 16px;
+          grid-template-columns: 1fr 1fr;
+          gap: 12px;
+          margin-bottom: 20px;
         }
-        .tile {
-          background: #0a1628;
-          border: 1px solid rgba(255, 255, 255, 0.06);
+        .glassCard {
+          background: rgba(255,255,255,0.04);
+          backdrop-filter: blur(20px);
+          -webkit-backdrop-filter: blur(20px);
+          border: 1px solid rgba(255,255,255,0.08);
+          border-radius: 18px;
+          padding: 18px;
+          position: relative;
+          overflow: hidden;
+        }
+        .glassCard.hero {
+          grid-column: 1 / -1;
+          background: linear-gradient(135deg, rgba(255,215,0,0.08), rgba(0,206,209,0.05));
+          border-color: rgba(255,215,0,0.2);
+        }
+        .cardIcon {
+          width: 34px;
+          height: 34px;
           border-radius: 10px;
-          padding: 14px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 15px;
+          margin-bottom: 10px;
         }
-        .tileLabel { font-size: 11px; color: #94a3b8; margin: 0 0 4px; }
-        .tileValue { font-size: 17px; font-weight: 700; color: #ffd700; margin: 0; }
-        .tileValue.teal { color: #00ced1; }
-        .tileValue.coral { color: #ff6b6b; }
+        .cardIcon.gold { background: linear-gradient(135deg, #ffd700, #b8860b); color: #0a1628; }
+        .cardIcon.blue { background: linear-gradient(135deg, #3b82f6, #1e40af); }
+        .cardIcon.teal { background: linear-gradient(135deg, #00ced1, #087f8c); }
+        .cardIcon.coral { background: linear-gradient(135deg, #ff6b6b, #b91c1c); }
+        .statLabel { font-size: 12px; color: #94a3b8; margin: 0 0 6px; }
+        .statValue { font-size: 20px; font-weight: 800; color: #fff; margin: 0; }
+        .statValue.gold { color: #ffd700; font-size: 26px; }
+        .statValue.teal { color: #00ced1; }
+        .statValue.coral { color: #ff6b6b; }
+        .statHint { font-size: 11px; color: #94a3b8; margin: 6px 0 0; }
+        .spark { margin-top: 10px; display: block; }
 
-        .quickActions {
+        .actionRow {
           display: flex;
           gap: 10px;
-          margin-bottom: 24px;
-          flex-wrap: wrap;
+          margin-bottom: 14px;
         }
         .actionBtn {
           flex: 1;
-          min-width: 140px;
           text-align: center;
-          background: #0a1628;
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          color: #e2e8f0;
-          padding: 13px 10px;
-          border-radius: 10px;
-          font-size: 13px;
-          font-weight: 600;
+          padding: 14px;
+          border-radius: 14px;
+          font-size: 14px;
+          font-weight: 700;
           text-decoration: none;
         }
         .actionBtn.primary {
-          background: #ffd700;
+          background: linear-gradient(135deg, #ffd700, #f0b400);
           color: #0a1628;
-          border-color: #ffd700;
+        }
+        .actionBtn.outline {
+          background: rgba(255,255,255,0.03);
+          border: 1px solid rgba(255,215,0,0.4);
+          color: #ffd700;
         }
 
-        .section { margin-bottom: 24px; }
-        .sectionTitle {
+        .approveStrip {
+          display: block;
+          text-align: center;
+          background: rgba(255,107,107,0.08);
+          border: 1px solid rgba(255,107,107,0.3);
+          color: #ff6b6b;
+          padding: 12px;
+          border-radius: 12px;
           font-size: 13px;
-          text-transform: uppercase;
-          letter-spacing: 0.6px;
-          color: #94a3b8;
-          margin: 0 0 12px;
+          font-weight: 600;
+          text-decoration: none;
+          margin-bottom: 24px;
         }
 
-        .goalCard {
-          background: #0a1628;
-          border: 1px solid rgba(255, 255, 255, 0.06);
-          border-radius: 12px;
-          padding: 18px 20px;
+        .section { margin-bottom: 20px; }
+        .sectionHead {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 12px;
         }
-        .goalRow { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 10px; }
-        .goalLabel { color: #94a3b8; }
-        .teal { color: #00ced1; }
-        .progressTrack {
-          height: 8px;
-          background: rgba(255, 255, 255, 0.08);
-          border-radius: 4px;
-          overflow: hidden;
-        }
-        .progressFill {
-          height: 100%;
-          background: linear-gradient(90deg, #00ced1, #ffd700);
-          border-radius: 4px;
-        }
-        .goalSub { font-size: 12px; color: #94a3b8; margin: 10px 0 0; }
+        .sectionTitle { font-size: 16px; font-weight: 700; color: #fff; margin: 0; }
+        .seeAll { font-size: 12px; color: #ffd700; text-decoration: none; }
+        .muted { color: #94a3b8; font-size: 13px; }
 
-        .cardGrid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        .activityList { display: flex; flex-direction: column; gap: 8px; }
+        .activityRow {
+          display: flex;
+          align-items: center;
           gap: 12px;
+          background: rgba(255,255,255,0.03);
+          border: 1px solid rgba(255,255,255,0.06);
+          border-radius: 14px;
+          padding: 12px 14px;
         }
-        .card {
-          background: #0a1628;
-          border: 1px solid rgba(255, 255, 255, 0.06);
-          border-radius: 12px;
-          padding: 16px;
+        .activityIcon {
+          width: 34px;
+          height: 34px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 14px;
+          flex-shrink: 0;
         }
-        .cardLabel { font-size: 11px; color: #94a3b8; margin: 0 0 6px; }
-        .cardValue { font-size: 19px; font-weight: 700; color: #ffd700; margin: 0; }
-        .cardSub { font-size: 11px; color: #94a3b8; margin: 4px 0 0; }
+        .activityIcon.in { background: rgba(0,206,209,0.15); color: #00ced1; }
+        .activityIcon.out { background: rgba(255,107,107,0.15); color: #ff6b6b; }
+        .activityMain { flex: 1; min-width: 0; }
+        .activityLabel { font-size: 13px; color: #e2e8f0; margin: 0; }
+        .activityTime { font-size: 11px; color: #94a3b8; margin: 2px 0 0; }
+        .activityAmount { font-size: 13px; font-weight: 700; }
+        .activityAmount.in { color: #00ced1; }
+        .activityAmount.out { color: #ff6b6b; }
 
         .statusLine { font-size: 12px; color: #94a3b8; text-align: center; margin: 8px 0 0; }
       `}</style>
