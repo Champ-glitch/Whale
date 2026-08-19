@@ -194,7 +194,7 @@ export default function AdminDashboard() {
           </div>
 
           <div className="quickActions">
-            <a href="/admin/send" className="actionBtn primary">➤ Send Payment</a>
+            <a href="/admin/send" className="actionBtn primary">➤ Request Payment</a>
             <a href="/admin/invoices" className="actionBtn">▤ Create Invoice</a>
             <a href="/admin/savings" className="actionBtn">
               ◑ Approve Split{summary.pendingSplit > 0 ? ` (${fmt(summary.pendingSplit)})` : ''}

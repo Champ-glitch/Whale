@@ -7,7 +7,7 @@ const NAV_ITEMS = [
   { href: '/admin', label: 'Dashboard', icon: '◆' },
   { href: '/admin/invoices', label: 'Invoices', icon: '▤' },
   { href: '/admin/payments', label: 'Live Payments', icon: '◉' },
-  { href: '/admin/send', label: 'Send Payment', icon: '➤' },
+  { href: '/admin/send', label: 'Request Payment', icon: '➤' },
   { href: '/admin/deductions', label: 'Deductions', icon: '−' },
   { href: '/admin/savings', label: 'Savings Split', icon: '◑' },
   { href: '/admin/report', label: 'Weekly Report', icon: '▲' },

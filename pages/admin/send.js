@@ -68,8 +68,8 @@ export default function AdminSend() {
 
   return (
     <AdminLayout title="Send Payment" pulse={pulse}>
-      <h1 className="pageTitle">Send Payment</h1>
-      <p className="pageSub">Trigger an M-Pesa STK push directly, without going through Telegram.</p>
+      <h1 className="pageTitle">Request Payment</h1>
+      <p className="pageSub">Send an M-Pesa prompt to a customer's phone — they enter their PIN, the money lands in your till.</p>
 
       <form onSubmit={handleSubmit} className="card">
         <div className="field">
@@ -95,7 +95,7 @@ export default function AdminSend() {
           />
         </div>
         <button type="submit" disabled={sending} className="btn">
-          {sending ? 'Sending...' : 'Send STK push'}
+          {sending ? 'Sending...' : 'Request Payment'}
         </button>
 
         {error && <p className="resultMsg err">{error}</p>}
