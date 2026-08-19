@@ -40,16 +40,53 @@ function Sparkline({ trend }) {
   );
 }
 
+const LAST_COUNT_KEY = 'whale_admin_last_count';
+const ARMED_KEY = 'whale_admin_alerts_armed';
+
 export default function AdminDashboard() {
   const [summary, setSummary] = useState(null);
   const [health, setHealth] = useState({ kv: true, telegram: true, makamesco: true });
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState(null);
-  const lastCountRef = useRef(null);
+  const [armed, setArmed] = useState(false);
+  const [notifPermission, setNotifPermission] = useState('default');
+  const audioCtxRef = useRef(null);
+
+  useEffect(() => {
+    if (sessionStorage.getItem(ARMED_KEY) === '1') {
+      setArmed(true);
+    }
+    if (typeof Notification !== 'undefined') {
+      setNotifPermission(Notification.permission);
+    }
+  }, []);
+
+  function unlockAudioAndArm() {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      audioCtxRef.current = ctx;
+      // Silent primer tone to satisfy the browser's user-gesture requirement
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      gain.gain.value = 0;
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.01);
+    } catch {}
+
+    if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+      Notification.requestPermission().then(setNotifPermission);
+    }
+
+    sessionStorage.setItem(ARMED_KEY, '1');
+    setArmed(true);
+  }
 
   function playChime() {
     try {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const ctx = audioCtxRef.current || new (window.AudioContext || window.webkitAudioContext)();
+      audioCtxRef.current = ctx;
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.connect(gain);
@@ -64,17 +101,36 @@ export default function AdminDashboard() {
     } catch {}
   }
 
+  function notify(message) {
+    playChime();
+    setToast(message);
+    setTimeout(() => setToast(null), 5000);
+
+    if (
+      typeof Notification !== 'undefined' &&
+      Notification.permission === 'granted' &&
+      document.hidden
+    ) {
+      try {
+        new Notification('WHALE_SYS', { body: message, icon: '/icons/icon-192.png' });
+      } catch {}
+    }
+  }
+
   function load() {
     Promise.all([
       fetch('/api/admin/summary').then((r) => r.json()),
       fetch('/api/admin/health').then((r) => r.json()),
     ]).then(([s, h]) => {
-      if (lastCountRef.current !== null && s.stats.count > lastCountRef.current) {
-        playChime();
-        setToast(`New payment received — ${s.stats.count - lastCountRef.current} confirmed`);
-        setTimeout(() => setToast(null), 5000);
+      const storedCount = sessionStorage.getItem(LAST_COUNT_KEY);
+      const lastCount = storedCount !== null ? Number(storedCount) : null;
+
+      if (armed && lastCount !== null && s.stats.count > lastCount) {
+        const diff = s.stats.count - lastCount;
+        notify(`New payment received — ${diff} confirmed`);
       }
-      lastCountRef.current = s.stats.count;
+
+      sessionStorage.setItem(LAST_COUNT_KEY, String(s.stats.count));
       setSummary(s);
       setHealth(h);
       setLoading(false);
@@ -85,7 +141,7 @@ export default function AdminDashboard() {
     load();
     const interval = setInterval(load, 15000);
     return () => clearInterval(interval);
-  }, []);
+  }, [armed]);
 
   const pulse = [
     { name: 'KV', ok: health.kv },
@@ -96,6 +152,21 @@ export default function AdminDashboard() {
   return (
     <AdminLayout title="Dashboard" pulse={pulse}>
       {toast && <div className="toast">🔔 {toast}</div>}
+
+      {!armed ? (
+        <button className="armBar" onClick={unlockAudioAndArm}>
+          🔕 Tap to enable payment alerts (sound + notification)
+        </button>
+      ) : (
+        <div className="armedBar">
+          <span className="armedDot" />
+          Listening for payments
+          {notifPermission === 'denied' && (
+            <span className="armedWarn"> · notifications blocked in browser settings</span>
+          )}
+        </div>
+      )}
+
       {loading ? (
         <p className="loading">Loading...</p>
       ) : (
@@ -177,6 +248,44 @@ export default function AdminDashboard() {
 
       <style jsx>{`
         .loading { color: #94a3b8; }
+
+        .armBar {
+          width: 100%;
+          background: rgba(255, 215, 0, 0.08);
+          border: 1px solid rgba(255, 215, 0, 0.3);
+          color: #ffd700;
+          padding: 12px 14px;
+          border-radius: 10px;
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+          font-family: inherit;
+          margin-bottom: 16px;
+          text-align: center;
+        }
+        .armedBar {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 12px;
+          color: #94a3b8;
+          margin-bottom: 16px;
+        }
+        .armedDot {
+          width: 7px;
+          height: 7px;
+          border-radius: 50%;
+          background: #00ced1;
+          animation: pulseDot 2s infinite;
+          flex-shrink: 0;
+        }
+        .armedWarn { color: #ff6b6b; }
+        @keyframes pulseDot {
+          0% { box-shadow: 0 0 0 0 rgba(0, 206, 209, 0.5); }
+          70% { box-shadow: 0 0 0 6px rgba(0, 206, 209, 0); }
+          100% { box-shadow: 0 0 0 0 rgba(0, 206, 209, 0); }
+        }
+
         .toast {
           position: fixed;
           top: 70px;
@@ -193,6 +302,7 @@ export default function AdminDashboard() {
           z-index: 50;
           box-shadow: 0 4px 16px rgba(0,0,0,0.4);
         }
+
         .heroCard {
           background: linear-gradient(135deg, #0a1628 0%, #0d1d33 100%);
           border: 1px solid rgba(255, 215, 0, 0.15);
