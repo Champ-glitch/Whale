@@ -7,6 +7,7 @@ import { parseReference } from '../../lib/reference';
 import { recordSuccessStats, addPendingSplit, SPLIT_RATIO, getAutoApprove, setSavingsBalance, getSavingsBalance, updateAdminPaymentStatus, addWeeklySaved } from '../../lib/kv';
 import { addClientFundsHeld } from '../../lib/clientFunds';
 import { logDirectPayment } from '../../lib/kv';
+import { sendSMS } from '../../lib/sms';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -56,6 +57,17 @@ export default async function handler(req, res) {
       // Main balance always grows on any successful payment - the money is
       // physically in the till either way.
       await recordSuccessStats(amountNum);
+
+      // Thank-you SMS to whoever paid. Fires once here regardless of which
+      // entry point the payment came through (Request Payment, Telegram
+      // /pay, or an invoice link) - sendSMS never throws, so this can never
+      // break the payment flow even if Nena is down.
+      if (phoneNumber) {
+        await sendSMS(
+          phoneNumber,
+          `Thank you for trading with Whale Enterprise. We've received your payment of KES ${amountNum.toLocaleString()}. Ref: ${accountReference}.`
+        );
+      }
 
       if (purpose === 'client') {
         // Client's money - hold it separately, skip the 40% split entirely.
