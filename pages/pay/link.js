@@ -1,6 +1,7 @@
 // pages/pay/link.js
 import Head from 'next/head';
 import { useState, useRef } from 'react';
+import { ShieldCheck, Zap, CheckCircle2 } from 'lucide-react';
 
 const VERIFY_MESSAGES = [
   "Waiting for you to enter your M-Pesa PIN...",
@@ -9,7 +10,7 @@ const VERIFY_MESSAGES = [
 ];
 
 export default function PayLink() {
-  const [stage, setStage] = useState('idle'); // idle | sending | verifying | success | failed
+  const [stage, setStage] = useState('idle');
   const [amount, setAmount] = useState('');
   const [phone, setPhone] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
@@ -77,208 +78,118 @@ export default function PayLink() {
     <>
       <Head>
         <title>Pay Whale Enterprise</title>
+        <meta name="description" content="Send a secure M-Pesa payment to Whale Enterprise." />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@1,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
       </Head>
 
-      <div className="wrap">
-        <div className="card">
+      <div className="min-h-screen bg-[#0B0F1A] relative overflow-hidden flex items-center justify-center px-5 py-10">
+        <div className="pointer-events-none absolute -top-24 -left-24 w-72 h-72 rounded-full bg-teal-400/10 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-16 -right-16 w-64 h-64 rounded-full bg-yellow-400/10 blur-3xl" />
+
+        <div className="relative w-full max-w-[400px]">
           {stage === 'success' ? (
-            <div className="centerState">
-              <div className="ring success">✓</div>
-              <p className="stateTitle">Payment Successful</p>
-              <p className="amountBig">KES {Number(amount).toLocaleString()}</p>
+            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl p-8 text-center">
+              <div className="w-14 h-14 rounded-full border-2 border-teal-400 flex items-center justify-center mx-auto mb-4">
+                <CheckCircle2 size={28} className="text-teal-400" />
+              </div>
+              <p className="text-white font-bold text-lg mb-1">Payment Successful</p>
+              <p className="text-yellow-400 text-2xl font-bold">KES {Number(amount).toLocaleString()}</p>
             </div>
           ) : stage === 'verifying' || stage === 'sending' ? (
-            <div className="centerState">
-              <div className="pulseIcon">📱</div>
-              <p className="stateTitle">
+            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl p-8 text-center">
+              <div className="text-4xl mb-4">📱</div>
+              <p className="text-white font-bold text-lg mb-1">
                 {stage === 'sending' ? 'Sending request' : 'Verifying payment'}
               </p>
-              <p className="stateSub">Check your phone and enter your M-Pesa PIN.</p>
+              <p className="text-slate-400 text-sm mb-4">Check your phone and enter your M-Pesa PIN.</p>
               {stage === 'verifying' && (
                 <>
-                  <p className="rotatingStatus">
+                  <p className="text-teal-400 text-xs mb-1">
                     {VERIFY_MESSAGES[Math.min(Math.floor(elapsed / 6), VERIFY_MESSAGES.length - 1)]}
                   </p>
-                  <p className="expectationNote">{elapsed}s elapsed</p>
+                  <p className="text-slate-500 text-xs">{elapsed}s elapsed</p>
                 </>
               )}
             </div>
           ) : stage === 'failed' ? (
-            <div className="centerState">
-              <div className="ring error">✕</div>
-              <p className="stateTitle">Payment not completed</p>
-              <p className="stateSub">{errorMsg}</p>
-              <button className="primaryBtn" onClick={retry}>Try again</button>
+            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl p-8 text-center">
+              <div className="w-14 h-14 rounded-full border-2 border-red-400 flex items-center justify-center mx-auto mb-4 text-red-400 text-xl font-bold">
+                ✕
+              </div>
+              <p className="text-white font-bold text-lg mb-1">Payment not completed</p>
+              <p className="text-slate-400 text-sm mb-5">{errorMsg}</p>
+              <button
+                onClick={retry}
+                className="px-6 py-2.5 rounded-full text-sm font-bold bg-gradient-to-r from-blue-500 to-yellow-400 text-[#0B0F1A]"
+              >
+                Try again
+              </button>
             </div>
           ) : (
             <>
-              <p className="brandName">whale enterprise</p>
-              <p className="verifiedSub">Merchant Verified</p>
-              <div className="divider" />
+              {/* Brand header */}
+              <div className="text-center mb-6">
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <span className="text-3xl">🐋</span>
+                </div>
+                <p className="font-serif italic font-bold text-2xl text-white">whale enterprise</p>
+                <p className="text-xs text-teal-400 mt-1 flex items-center justify-center gap-1">
+                  <ShieldCheck size={12} /> Merchant Verified
+                </p>
+                <p className="text-slate-400 text-xs mt-3 max-w-[280px] mx-auto leading-relaxed">
+                  Send a secure M-Pesa payment directly to Whale Enterprise. Enter your amount
+                  and phone number below — you'll get a prompt on your phone to confirm.
+                </p>
+              </div>
 
-              <form onSubmit={handleSubmit}>
-                <label className="fieldLabel">Amount (KES)</label>
+              <form onSubmit={handleSubmit} className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl p-6">
+                <label className="block text-xs text-slate-400 mb-1.5">Amount (KES)</label>
                 <input
                   type="number"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
-                  className="input"
                   placeholder="500"
                   required
+                  className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-sm text-slate-100 mb-4 focus:outline-none focus:border-teal-400"
                 />
 
-                <label className="fieldLabel">Phone number</label>
-                <div className="phoneGroup">
-                  <span className="prefix">+254</span>
+                <label className="block text-xs text-slate-400 mb-1.5">Phone number</label>
+                <div className="flex items-center bg-black/30 border border-white/10 rounded-xl px-4 mb-5 focus-within:border-teal-400">
+                  <span className="text-slate-400 text-sm mr-2">+254</span>
                   <input
                     type="tel"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
-                    className="phoneInput"
                     placeholder="712 345 678"
                     required
+                    className="flex-1 bg-transparent py-3 text-sm text-slate-100 focus:outline-none"
                   />
                 </div>
 
-                <button type="submit" className="payNowBtn">
-                  PAY NOW <span className="arrow">→</span>
+                <button
+                  type="submit"
+                  className="w-full py-3.5 rounded-full text-sm font-bold bg-gradient-to-r from-blue-500 to-yellow-400 text-[#0B0F1A] flex items-center justify-center gap-1.5"
+                >
+                  PAY NOW <Zap size={14} />
                 </button>
+
+                <div className="flex items-center justify-center gap-4 mt-5 text-[10px] text-slate-500">
+                  <span className="flex items-center gap-1"><ShieldCheck size={11} /> Encrypted</span>
+                  <span>·</span>
+                  <span>256-bit SSL</span>
+                  <span>·</span>
+                  <span>No hidden fees</span>
+                </div>
               </form>
+
+              <p className="text-center text-slate-600 text-[11px] mt-6">
+                © 2026 Whale Enterprise · Self-Taught. Self-Made.
+              </p>
             </>
           )}
         </div>
       </div>
-
-      <style jsx global>{`
-        * { box-sizing: border-box; }
-        body {
-          margin: 0;
-          font-family: 'Inter', -apple-system, sans-serif;
-        }
-      `}</style>
-
-      <style jsx>{`
-        .wrap {
-          min-height: 100vh;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: radial-gradient(circle at 30% 20%, #0a1628 0%, #060b14 60%);
-          padding: 20px;
-        }
-        .card {
-          width: 100%;
-          max-width: 380px;
-          background: rgba(10, 22, 40, 0.7);
-          border: 1px solid rgba(255, 255, 255, 0.08);
-          border-radius: 16px;
-          padding: 32px 28px;
-        }
-        .brandName {
-          font-family: 'Playfair Display', serif;
-          font-style: italic;
-          font-weight: 700;
-          font-size: 26px;
-          color: #fff;
-          margin: 0;
-          text-align: center;
-        }
-        .verifiedSub {
-          text-align: center;
-          color: #cbd5e1;
-          font-size: 13px;
-          margin: 6px 0 0;
-        }
-        .divider {
-          width: 80%;
-          height: 1px;
-          background: rgba(255, 255, 255, 0.15);
-          margin: 24px auto;
-        }
-        .fieldLabel {
-          display: block;
-          font-size: 12px;
-          color: #94a3b8;
-          margin-bottom: 6px;
-        }
-        .input {
-          width: 100%;
-          background: #060b14;
-          border: 1px solid rgba(255, 255, 255, 0.12);
-          border-radius: 8px;
-          padding: 12px 14px;
-          color: #e2e8f0;
-          font-size: 15px;
-          font-family: inherit;
-          margin-bottom: 18px;
-        }
-        .input:focus { outline: none; border-color: #00ced1; }
-        .phoneGroup {
-          display: flex;
-          align-items: center;
-          background: #060b14;
-          border: 1px solid rgba(255, 255, 255, 0.12);
-          border-radius: 8px;
-          padding: 0 14px;
-          margin-bottom: 22px;
-        }
-        .prefix { color: #94a3b8; font-size: 15px; margin-right: 6px; }
-        .phoneInput {
-          flex: 1;
-          background: none;
-          border: none;
-          padding: 12px 0;
-          color: #e2e8f0;
-          font-size: 15px;
-          font-family: inherit;
-        }
-        .phoneInput:focus { outline: none; }
-        .payNowBtn {
-          width: 100%;
-          background: #ffd700;
-          color: #0a1628;
-          border: none;
-          border-radius: 10px;
-          padding: 15px;
-          font-weight: 700;
-          font-size: 15px;
-          cursor: pointer;
-          font-family: inherit;
-        }
-        .centerState { text-align: center; padding: 12px 0; }
-        .ring {
-          width: 56px;
-          height: 56px;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 26px;
-          margin: 0 auto 18px;
-        }
-        .ring.success { border: 2px solid #00ced1; color: #00ced1; }
-        .ring.error { border: 2px solid #ff6b6b; color: #ff6b6b; }
-        .pulseIcon { font-size: 40px; margin-bottom: 14px; }
-        .stateTitle { font-size: 18px; font-weight: 700; color: #fff; margin: 0 0 6px; }
-        .stateSub { color: #94a3b8; font-size: 13px; margin: 0 0 14px; }
-        .amountBig { font-size: 24px; font-weight: 700; color: #ffd700; margin: 0; }
-        .rotatingStatus { color: #00ced1; font-size: 13px; margin: 0 0 4px; }
-        .expectationNote { color: #94a3b8; font-size: 12px; margin: 0; }
-        .primaryBtn {
-          background: #ffd700;
-          color: #0a1628;
-          border: none;
-          border-radius: 8px;
-          padding: 11px 24px;
-          font-weight: 700;
-          font-size: 14px;
-          cursor: pointer;
-          font-family: inherit;
-          margin-top: 8px;
-        }
-      `}</style>
     </>
   );
 }
