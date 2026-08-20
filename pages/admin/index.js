@@ -132,9 +132,8 @@ export default function AdminDashboard() {
             <div className="pointer-events-none absolute -inset-4 bg-gradient-to-br from-blue-500/10 via-transparent to-yellow-400/10 blur-2xl rounded-3xl" />
             <div className="relative bg-white/5 backdrop-blur-xl border border-yellow-400/20 rounded-2xl p-4 flex items-center justify-between">
               <div>
-                <p className="text-xs text-slate-400 mb-1">Total Processed (Lifetime)</p>
+                <p className="text-xs text-slate-400 mb-1">Total Processed</p>
                 <p className="text-xl font-bold text-yellow-400">{fmt(summary.totalProcessed)}</p>
-                <p className="text-xs text-slate-500 mt-0.5">Income + client funds ever received — never decreases</p>
               </div>
             </div>
           </div>
