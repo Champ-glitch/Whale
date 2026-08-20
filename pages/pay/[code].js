@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import Head from "next/head";
 import { getInvoice } from "../../lib/kv.js";
+import { Lock, Zap, CheckCircle2, WifiOff, Copy, Smartphone, Lightbulb } from "lucide-react";
 
 export async function getServerSideProps({ params }) {
   const invoice = await getInvoice(params.code);
@@ -28,9 +29,9 @@ const VERIFY_MESSAGES = [
   "Still confirming with M-Pesa...",
 ];
 const TIP_MESSAGES = [
-  "💡 Tip: Keep this page open until you see confirmation.",
-  "💡 Tip: Save your number next time for a faster checkout.",
-  "💡 Tip: You'll get a receipt automatically once confirmed.",
+  "Tip: Keep this page open until you see confirmation.",
+  "Tip: Save your number next time for a faster checkout.",
+  "Tip: You'll get a receipt automatically once confirmed.",
 ];
 const TIKTOK_URL = "https://www.tiktok.com/@Whale_sys";
 const EXPIRY_HOURS = 12;
@@ -496,7 +497,7 @@ export default function PayPage({ invoice, code }) {
     <Shell title={invoice.status === "success" ? "Payment Complete" : `Pay KES ${invoice.amount}`} description={invoice.description}>
       {isOffline && (
         <div className="offlineBanner">
-          ⚠️ You're offline — reconnect to continue
+          <WifiOff size={14} style={{ verticalAlign: "-2px", marginRight: 6 }} />You're offline — reconnect to continue
         </div>
       )}
       {toast && <div className="toast">{toast}</div>}
@@ -597,7 +598,7 @@ export default function PayPage({ invoice, code }) {
                     </button>
                   )}
 
-                  <p className="tipLine">{TIP_MESSAGES[Math.floor(elapsed / 8) % TIP_MESSAGES.length]}</p>
+                  <p className="tipLine"><Lightbulb size={12} style={{ verticalAlign: "-2px", marginRight: 4 }} />{TIP_MESSAGES[Math.floor(elapsed / 8) % TIP_MESSAGES.length]}</p>
                 </>
               )}
             </div>
@@ -650,7 +651,7 @@ export default function PayPage({ invoice, code }) {
                   tabIndex={0}
                 >
                   <span className="metaLabel">Reference</span>
-                  <span className="metaValue mono">{code} <span className="copyHint">⧉ copy</span></span>
+                  <span className="metaValue mono">{code} <span className="copyHint"><Copy size={11} style={{ verticalAlign: "-1px", marginRight: 3 }} />copy</span></span>
                 </div>
               </div>
 
@@ -1110,7 +1111,7 @@ function PulsePhone() {
     <div className="pulsePhoneWrap">
       <div className="pulseRing r1" />
       <div className="pulseRing r2" />
-      <div className="phoneIcon">📲</div>
+      <div className="phoneIcon"><Smartphone size={30} /></div>
       <style jsx>{`
         .pulsePhoneWrap { position: relative; width: 70px; height: 70px; margin: 6px auto 14px; display: flex; align-items: center; justify-content: center; }
         .phoneIcon { font-size: 30px; z-index: 1; }
