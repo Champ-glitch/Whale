@@ -11,7 +11,7 @@ function generateCode() {
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
-  const { amount, phone } = req.body;
+  const { amount, phone, description } = req.body;
 
   if (!amount || Number(amount) <= 0) {
     return res.status(400).json({ error: 'Enter a valid amount' });
@@ -31,7 +31,7 @@ export default async function handler(req, res) {
   try {
     await saveInvoice(code, {
       amount: Number(amount),
-      description: 'Payment to Whale Enterprise',
+      description: (description || '').trim() || 'Payment to Whale Enterprise',
       status: 'pending',
       createdAt: Date.now(),
       source: 'public',
