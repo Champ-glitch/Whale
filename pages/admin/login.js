@@ -34,120 +34,46 @@ export default function AdminLogin() {
     <>
       <Head>
         <title>Admin Login — WHALE_SYS</title>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@1,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
         <meta name="robots" content="noindex, nofollow" />
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#0a1628" />
       </Head>
 
-      <div className="wrap">
-        <div className="card">
-          <p className="brandMark">whale enterprise</p>
-          <p className="brandSub">Admin Console</p>
+      <div className="min-h-screen bg-[#0B0F1A] relative overflow-hidden flex items-center justify-center px-5">
+        <div className="pointer-events-none absolute -top-24 -left-24 w-72 h-72 rounded-full bg-teal-400/10 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-16 -right-16 w-64 h-64 rounded-full bg-yellow-400/10 blur-3xl" />
+
+        <div className="relative w-full max-w-[360px] bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl p-8 text-center">
+          <div className="flex items-center justify-center gap-2 mb-1">
+            <span className="text-3xl">🐋</span>
+          </div>
+          <p className="font-serif italic font-bold text-2xl text-white">whale enterprise</p>
+          <p className="text-xs uppercase tracking-wide text-teal-400 mb-8">Admin Console</p>
 
           <form onSubmit={handleSubmit}>
-            <label className="label" htmlFor="password">Password</label>
+            <label htmlFor="password" className="block text-left text-xs text-slate-400 mb-1.5">
+              Password
+            </label>
             <input
               id="password"
               type="password"
               autoFocus
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="input"
               placeholder="Enter admin password"
+              className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-sm text-slate-100 mb-4 focus:outline-none focus:border-teal-400"
             />
-            {error && <p className="error">{error}</p>}
-            <button type="submit" disabled={loading} className="btn">
+            {error && <p className="text-red-400 text-xs text-left mb-4 -mt-2">{error}</p>}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3.5 rounded-full text-sm font-bold bg-gradient-to-r from-blue-500 to-yellow-400 text-[#0B0F1A] disabled:opacity-60"
+            >
               {loading ? 'Checking...' : 'Sign in'}
             </button>
           </form>
         </div>
       </div>
-
-      <style jsx global>{`
-        * { box-sizing: border-box; }
-        body {
-          margin: 0;
-          font-family: 'Inter', -apple-system, sans-serif;
-        }
-      `}</style>
-
-      <style jsx>{`
-        .wrap {
-          min-height: 100vh;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: radial-gradient(circle at 30% 20%, #0a1628 0%, #060b14 60%);
-          padding: 20px;
-        }
-        .card {
-          width: 100%;
-          max-width: 360px;
-          background: rgba(10, 22, 40, 0.6);
-          border: 1px solid rgba(255, 255, 255, 0.08);
-          border-radius: 16px;
-          padding: 36px 32px;
-          text-align: center;
-        }
-        .brandMark {
-          font-family: 'Playfair Display', serif;
-          font-style: italic;
-          font-weight: 700;
-          font-size: 26px;
-          color: #ffffff;
-          margin: 0;
-        }
-        .brandSub {
-          font-size: 11px;
-          letter-spacing: 1px;
-          text-transform: uppercase;
-          color: #00ced1;
-          margin: 6px 0 32px;
-        }
-        .label {
-          display: block;
-          text-align: left;
-          font-size: 12px;
-          color: #94a3b8;
-          margin-bottom: 6px;
-        }
-        .input {
-          width: 100%;
-          background: #060b14;
-          border: 1px solid rgba(255, 255, 255, 0.12);
-          border-radius: 8px;
-          padding: 12px 14px;
-          color: #e2e8f0;
-          font-size: 15px;
-          font-family: inherit;
-          margin-bottom: 16px;
-        }
-        .input:focus {
-          outline: none;
-          border-color: #00ced1;
-        }
-        .error {
-          color: #ff6b6b;
-          font-size: 13px;
-          margin: -6px 0 14px;
-          text-align: left;
-        }
-        .btn {
-          width: 100%;
-          background: #ffd700;
-          color: #0a1628;
-          border: none;
-          border-radius: 8px;
-          padding: 13px;
-          font-size: 15px;
-          font-weight: 700;
-          cursor: pointer;
-          font-family: inherit;
-        }
-        .btn:disabled {
-          opacity: 0.6;
-        }
-      `}</style>
     </>
   );
 }

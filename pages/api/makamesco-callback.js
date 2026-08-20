@@ -6,6 +6,7 @@ import { kesToUsdt } from '../../lib/rates';
 import { parseReference } from '../../lib/reference';
 import { recordSuccessStats, addPendingSplit, SPLIT_RATIO, getAutoApprove, setSavingsBalance, getSavingsBalance, updateAdminPaymentStatus, addWeeklySaved } from '../../lib/kv';
 import { addClientFundsHeld } from '../../lib/clientFunds';
+import { logDirectPayment } from '../../lib/kv';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -75,6 +76,9 @@ export default async function handler(req, res) {
 
     if (accountReference.startsWith('ADMIN-')) {
       await updateAdminPaymentStatus(accountReference, success ? 'success' : 'failed');
+      if (success) {
+        await logDirectPayment(amountNum, clientNote || 'Requested payment');
+      }
       return res.status(200).json({ ok: true });
     }
 
@@ -84,6 +88,8 @@ export default async function handler(req, res) {
       const { chatId } = parsed;
 
       if (success) {
+        await logDirectPayment(amountNum, 'Telegram payment');
+
         const adminShare = Math.round(amountNum * 0.6);
         const userShare = amountNum - adminShare;
 

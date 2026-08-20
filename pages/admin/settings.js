@@ -1,6 +1,7 @@
 // pages/admin/settings.js
 import { useState } from 'react';
-import AdminLayout from '../../components/AdminLayout';
+import { AlertTriangle } from 'lucide-react';
+import TailwindShell, { GlassCard } from '../../components/TailwindShell';
 import { isAuthenticated } from '../../lib/adminAuth';
 
 export async function getServerSideProps({ req }) {
@@ -35,85 +36,38 @@ export default function AdminSettings() {
     }
   }
 
-  const pulse = [{ name: 'KV', ok: true }, { name: 'Telegram', ok: true }, { name: 'Makamesco', ok: true }];
-
   return (
-    <AdminLayout title="Settings" pulse={pulse}>
-      <h1 className="pageTitle">Settings</h1>
-      <p className="pageSub">System-level actions.</p>
+    <TailwindShell title="Settings">
+      <p className="text-lg font-serif italic text-white">Settings</p>
+      <p className="text-sm text-slate-400 mb-6">System-level actions.</p>
 
-      <div className="dangerCard">
-        <p className="dangerTitle">⚠ Full Reset</p>
-        <p className="dangerText">
+      <GlassCard className="border-red-500/30">
+        <div className="flex items-center gap-2 mb-2">
+          <AlertTriangle size={16} className="text-red-400" />
+          <p className="text-sm font-bold text-red-400">Full Reset</p>
+        </div>
+        <p className="text-xs text-slate-400 mb-4 leading-relaxed">
           Wipes all invoices, deductions, savings, stats, and pending states. This cannot be undone.
-          Type <strong>RESET</strong> below to confirm.
+          Type <span className="text-slate-200 font-semibold">RESET</span> below to confirm.
         </p>
         <input
           type="text"
           value={confirmText}
           onChange={(e) => setConfirmText(e.target.value)}
-          className="input"
           placeholder="Type RESET"
+          className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-sm text-slate-100 mb-3 focus:outline-none focus:border-red-400"
         />
         <button
-          className="dangerBtn"
-          disabled={confirmText !== 'RESET' || resetting}
           onClick={handleReset}
+          disabled={confirmText !== 'RESET' || resetting}
+          className="w-full py-3 rounded-full text-sm font-bold bg-red-500/80 text-[#0B0F1A] disabled:opacity-40"
         >
           {resetting ? 'Resetting...' : 'Reset everything'}
         </button>
         {result && (
-          <p className={`resultMsg ${result.ok ? 'ok' : 'err'}`}>{result.message}</p>
+          <p className={`text-xs mt-3 ${result.ok ? 'text-teal-400' : 'text-red-400'}`}>{result.message}</p>
         )}
-      </div>
-
-      <style jsx>{`
-        .pageTitle {
-          font-family: 'Playfair Display', serif;
-          font-style: italic;
-          font-size: 28px;
-          margin: 0 0 4px;
-          color: #fff;
-        }
-        .pageSub { color: #94a3b8; font-size: 14px; margin: 0 0 24px; }
-        .dangerCard {
-          background: #0a1628;
-          border: 1px solid rgba(255, 107, 107, 0.3);
-          border-radius: 12px;
-          padding: 22px;
-          max-width: 420px;
-        }
-        .dangerTitle { color: #ff6b6b; font-weight: 700; font-size: 15px; margin: 0 0 8px; }
-        .dangerText { color: #94a3b8; font-size: 13px; margin: 0 0 16px; line-height: 1.5; }
-        .input {
-          width: 100%;
-          background: #060b14;
-          border: 1px solid rgba(255, 255, 255, 0.12);
-          border-radius: 8px;
-          padding: 10px 12px;
-          color: #e2e8f0;
-          font-size: 14px;
-          font-family: inherit;
-          margin-bottom: 12px;
-        }
-        .input:focus { outline: none; border-color: #ff6b6b; }
-        .dangerBtn {
-          width: 100%;
-          background: #ff6b6b;
-          color: #060b14;
-          border: none;
-          border-radius: 8px;
-          padding: 11px;
-          font-weight: 700;
-          font-size: 14px;
-          cursor: pointer;
-          font-family: inherit;
-        }
-        .dangerBtn:disabled { opacity: 0.4; cursor: not-allowed; }
-        .resultMsg { font-size: 13px; margin: 12px 0 0; }
-        .resultMsg.ok { color: #00ced1; }
-        .resultMsg.err { color: #ff6b6b; }
-      `}</style>
-    </AdminLayout>
+      </GlassCard>
+    </TailwindShell>
   );
 }
