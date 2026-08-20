@@ -168,13 +168,13 @@ export default function AdminDashboard() {
 
           <div className="flex gap-3 mb-8">
             <a
-              href="/admin/send"
+              href="/admin/transfers"
               className="flex-1 flex items-center justify-center gap-1.5 rounded-full py-3.5 text-sm font-bold bg-gradient-to-r from-blue-500 to-yellow-400 text-[#0B0F1A]"
             >
               <Plus size={16} /> Request Payment
             </a>
             <a
-              href="/admin/invoices"
+              href="/admin/transfers?tab=invoices"
               className="flex-1 flex items-center justify-center gap-1.5 rounded-full py-3.5 text-sm font-bold border-2 border-yellow-400 text-yellow-400"
             >
               <FileText size={16} /> Create Invoice
@@ -183,7 +183,7 @@ export default function AdminDashboard() {
 
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-white font-bold text-base">Recent Transactions</h2>
-            <a href="/admin/payments" className="text-yellow-400 text-xs font-medium flex items-center gap-1">
+            <a href="/admin/transfers?tab=payments" className="text-yellow-400 text-xs font-medium flex items-center gap-1">
               See all <span>→</span>
             </a>
           </div>

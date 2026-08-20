@@ -22,7 +22,7 @@ export async function getServerSideProps({ req }) {
 }
 
 const MENU_ITEMS = [
-  { href: '/admin/invoices', label: 'Invoices', icon: FileText, color: 'text-blue-400' },
+  { href: '/admin/transfers?tab=invoices', label: 'Invoices', icon: FileText, color: 'text-blue-400' },
   { href: '/admin/deductions', label: 'Deductions', icon: MinusCircle, color: 'text-red-400' },
   { href: '/admin/savings', label: 'Savings Split', icon: PiggyBank, color: 'text-teal-400' },
   { href: '/admin/client-funds', label: 'Client Funds', icon: Users, color: 'text-purple-300' },

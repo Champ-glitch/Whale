@@ -6,7 +6,7 @@ import { Bell, BellOff } from 'lucide-react';
 const NAV_ITEMS = [
   { href: '/admin', label: 'Home' },
   { href: '/admin/report', label: 'Analytics' },
-  { href: '/admin/send', label: 'Transfers' },
+  { href: '/admin/transfers', label: 'Transfers' },
   { href: '/admin/profile', label: 'Profile' },
 ];
 
