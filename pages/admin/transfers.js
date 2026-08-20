@@ -73,6 +73,8 @@ export default function AdminTransfers() {
 function RequestTab() {
   const [amount, setAmount] = useState('');
   const [phone, setPhone] = useState('');
+  const [purpose, setPurpose] = useState('income');
+  const [clientNote, setClientNote] = useState('');
   const [sending, setSending] = useState(false);
   const [status, setStatus] = useState(null);
   const [error, setError] = useState('');
@@ -104,7 +106,7 @@ function RequestTab() {
       const res = await fetch('/api/admin/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount, phoneNumber: phone }),
+        body: JSON.stringify({ amount, phoneNumber: phone, purpose, clientNote }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
@@ -158,6 +160,45 @@ function RequestTab() {
             required
           />
         </div>
+        <div>
+          <label className="text-xs text-slate-400 mb-1.5 block">Whose money is this?</label>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setPurpose('income')}
+              className={`flex-1 py-2.5 rounded-xl text-xs font-semibold border ${
+                purpose === 'income' ? 'bg-yellow-400/15 border-yellow-400 text-yellow-400' : 'bg-black/30 border-white/10 text-slate-400'
+              }`}
+            >
+              My Income
+            </button>
+            <button
+              type="button"
+              onClick={() => setPurpose('client')}
+              className={`flex-1 py-2.5 rounded-xl text-xs font-semibold border ${
+                purpose === 'client' ? 'bg-purple-400/15 border-purple-400 text-purple-300' : 'bg-black/30 border-white/10 text-slate-400'
+              }`}
+            >
+              Client Funds
+            </button>
+          </div>
+        </div>
+        {purpose === 'client' && (
+          <div>
+            <label className="text-xs text-slate-400 mb-1.5 block">What's this for?</label>
+            <input
+              type="text"
+              value={clientNote}
+              onChange={(e) => setClientNote(e.target.value)}
+              className="w-full bg-black/30 border border-purple-400/30 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-400"
+              placeholder="e.g. Business account opening for Mary"
+              required
+            />
+            <p className="text-xs text-purple-300/80 mt-2">
+              This won't be split into your savings — it'll show up in Client Funds instead.
+            </p>
+          </div>
+        )}
         <button
           type="submit"
           disabled={sending}
@@ -178,6 +219,8 @@ function InvoicesTab() {
   const [loading, setLoading] = useState(true);
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
+  const [purpose, setPurpose] = useState('income');
+  const [clientNote, setClientNote] = useState('');
   const [creating, setCreating] = useState(false);
   const [newLink, setNewLink] = useState(null);
   const [copied, setCopied] = useState(false);
@@ -206,13 +249,14 @@ function InvoicesTab() {
       const res = await fetch('/api/admin/invoices', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount, description }),
+        body: JSON.stringify({ amount, description, purpose, clientNote }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setNewLink(`https://whale-gamma-pied.vercel.app${data.url}`);
       setAmount('');
       setDescription('');
+      setClientNote('');
       load();
     } catch (err) {
       alert(err.message);
@@ -264,6 +308,45 @@ function InvoicesTab() {
               placeholder="What's this for?"
             />
           </div>
+          <div>
+            <label className="text-xs text-slate-400 mb-1.5 block">Whose money is this?</label>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setPurpose('income')}
+                className={`flex-1 py-2.5 rounded-xl text-xs font-semibold border ${
+                  purpose === 'income' ? 'bg-yellow-400/15 border-yellow-400 text-yellow-400' : 'bg-black/30 border-white/10 text-slate-400'
+                }`}
+              >
+                My Income
+              </button>
+              <button
+                type="button"
+                onClick={() => setPurpose('client')}
+                className={`flex-1 py-2.5 rounded-xl text-xs font-semibold border ${
+                  purpose === 'client' ? 'bg-purple-400/15 border-purple-400 text-purple-300' : 'bg-black/30 border-white/10 text-slate-400'
+                }`}
+              >
+                Client Funds
+              </button>
+            </div>
+          </div>
+          {purpose === 'client' && (
+            <div>
+              <label className="text-xs text-slate-400 mb-1.5 block">What's this for?</label>
+              <input
+                type="text"
+                value={clientNote}
+                onChange={(e) => setClientNote(e.target.value)}
+                className="w-full bg-black/30 border border-purple-400/30 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-400"
+                placeholder="e.g. Business account opening for Mary"
+                required
+              />
+              <p className="text-xs text-purple-300/80 mt-2">
+                This won't be split into your savings — it'll show up in Client Funds instead.
+              </p>
+            </div>
+          )}
           <button
             type="submit"
             disabled={creating}

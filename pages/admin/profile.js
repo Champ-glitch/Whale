@@ -5,6 +5,7 @@ import {
   FileText,
   MinusCircle,
   PiggyBank,
+  Users,
   BarChart3,
   Settings as SettingsIcon,
   LogOut,
@@ -24,6 +25,7 @@ const MENU_ITEMS = [
   { href: '/admin/invoices', label: 'Invoices', icon: FileText, color: 'text-blue-400' },
   { href: '/admin/deductions', label: 'Deductions', icon: MinusCircle, color: 'text-red-400' },
   { href: '/admin/savings', label: 'Savings Split', icon: PiggyBank, color: 'text-teal-400' },
+  { href: '/admin/client-funds', label: 'Client Funds', icon: Users, color: 'text-purple-300' },
   { href: '/admin/report', label: 'Weekly Report', icon: BarChart3, color: 'text-yellow-400' },
   { href: '/admin/settings', label: 'Settings', icon: SettingsIcon, color: 'text-slate-400' },
 ];

@@ -1,6 +1,6 @@
 // pages/api/admin/invoices.js
 import { isAuthenticated } from '../../../lib/adminAuth';
-import { listInvoices, saveInvoice } from '../../../lib/kv';
+import { listInvoices, saveInvoice, updateInvoiceStatus } from '../../../lib/kv';
 
 function generateCode() {
   const year = new Date().getFullYear();
@@ -22,9 +22,13 @@ export default async function handler(req, res) {
   }
 
   if (req.method === 'POST') {
-    const { amount, description } = req.body;
+    const { amount, description, purpose, clientNote } = req.body;
     if (!amount || Number(amount) <= 0) {
       return res.status(400).json({ error: 'Enter a valid amount' });
+    }
+    const finalPurpose = purpose === 'client' ? 'client' : 'income';
+    if (finalPurpose === 'client' && !clientNote) {
+      return res.status(400).json({ error: 'Add a note describing what this client payment is for' });
     }
     try {
       const code = generateCode();
@@ -34,6 +38,8 @@ export default async function handler(req, res) {
         status: 'pending',
         createdAt: Date.now(),
         source: 'admin',
+        purpose: finalPurpose,
+        clientNote: finalPurpose === 'client' ? clientNote : null,
       });
       return res.status(200).json({ code, url: `/pay/${code}` });
     } catch (err) {
@@ -48,7 +54,6 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Invalid code or status' });
     }
     try {
-      const { updateInvoiceStatus } = await import('../../../lib/kv');
       await updateInvoiceStatus(code, status);
       return res.status(200).json({ ok: true });
     } catch (err) {

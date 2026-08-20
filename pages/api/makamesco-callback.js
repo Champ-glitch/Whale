@@ -1,10 +1,11 @@
 // pages/api/makamesco-callback.js
-import { getInvoice, updateInvoiceStatus } from '../../lib/kv';
+import { getInvoice, updateInvoiceStatus, getAdminPayment } from '../../lib/kv';
 import { sendTelegramMessage, sendTelegramAnimation } from '../../lib/telegram';
 import { getRandomGif, getRandomQuote } from '../../lib/extras';
 import { kesToUsdt } from '../../lib/rates';
 import { parseReference } from '../../lib/reference';
 import { recordSuccessStats, addPendingSplit, SPLIT_RATIO, getAutoApprove, setSavingsBalance, getSavingsBalance, updateAdminPaymentStatus, addWeeklySaved } from '../../lib/kv';
+import { addClientFundsHeld } from '../../lib/clientFunds';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -27,19 +28,48 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true });
     }
 
-    // Credit the balance on ANY successful payment, regardless of source
-    // (Telegram /pay, web invoice, or admin panel) - the money genuinely arrived.
+    // Figure out this payment's purpose before crediting anything, since
+    // client funds must NEVER be split into savings.
+    let purpose = 'income';
+    let clientNote = null;
+
+    if (accountReference.startsWith('ADMIN-')) {
+      const adminPayment = await getAdminPayment(accountReference);
+      if (adminPayment) {
+        purpose = adminPayment.purpose || 'income';
+        clientNote = adminPayment.clientNote || null;
+      }
+    } else if (!parseReference(accountReference)) {
+      // Plain invoice code (web /link flow)
+      const invoice = await getInvoice(accountReference);
+      if (invoice) {
+        purpose = invoice.purpose || 'income';
+        clientNote = invoice.clientNote || null;
+      }
+    }
+    // Note: Telegram-initiated /pay (WHALE:: reference) has no stored record
+    // to tag, so it always defaults to 'income'. Use the admin panel's
+    // Request Payment or Invoices tab to tag client funds.
+
     if (success) {
+      // Main balance always grows on any successful payment - the money is
+      // physically in the till either way.
       await recordSuccessStats(amountNum);
 
-      const savingsShare = Math.round(amountNum * SPLIT_RATIO);
-      const autoApprove = await getAutoApprove();
-      if (autoApprove) {
-        const current = await getSavingsBalance();
-        await setSavingsBalance(current + savingsShare);
-        await addWeeklySaved(savingsShare);
+      if (purpose === 'client') {
+        // Client's money - hold it separately, skip the 40% split entirely.
+        await addClientFundsHeld(amountNum, clientNote || `Ref: ${accountReference}`);
       } else {
-        await addPendingSplit(savingsShare, { accountReference });
+        // Your income - apply the normal 60/40 split.
+        const savingsShare = Math.round(amountNum * SPLIT_RATIO);
+        const autoApprove = await getAutoApprove();
+        if (autoApprove) {
+          const current = await getSavingsBalance();
+          await setSavingsBalance(current + savingsShare);
+          await addWeeklySaved(savingsShare);
+        } else {
+          await addPendingSplit(savingsShare, { accountReference });
+        }
       }
     }
 
@@ -51,7 +81,6 @@ export default async function handler(req, res) {
     const parsed = parseReference(accountReference);
 
     if (parsed) {
-      // Direct /pay STK push (Telegram or admin) - message chatId if we have one
       const { chatId } = parsed;
 
       if (success) {
@@ -77,12 +106,10 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true });
     }
 
-    // Otherwise: check if it's a stored web invoice
     const invoiceCode = accountReference;
     const invoice = await getInvoice(invoiceCode);
 
     if (!invoice) {
-      // Balance was already credited above (e.g. admin panel direct send with no invoice)
       console.log(`No invoice/chatId to notify for:`, invoiceCode, '- balance still credited if successful');
       return res.status(200).json({ ok: true });
     }
@@ -93,28 +120,43 @@ export default async function handler(req, res) {
         return res.status(200).json({ ok: true });
       }
 
-      const adminShare = Math.round(amountNum * 0.6);
-      const userShare = amountNum - adminShare;
-
       await updateInvoiceStatus(invoiceCode, "success");
 
-      const usdt = await kesToUsdt(amountNum);
-      const usdtLine = usdt ? `~${usdt} USDT` : '';
-      const quote = getRandomQuote();
+      if (purpose !== 'client') {
+        const adminShare = Math.round(amountNum * 0.6);
+        const userShare = amountNum - adminShare;
 
-      const caption = `*Payment received*\n` +
-        `KES ${amountNum.toLocaleString()}${usdtLine}\n` +
-        `Sender: ${phoneNumber}\n` +
-        `M-Pesa Receipt: ${transactionId}\n` +
-        `Ref: ${invoiceCode}\n\n` +
-        `Admin 60%: KES ${adminShare.toLocaleString()}\n` +
-        `Your 40%: KES ${userShare.toLocaleString()}\n\n` +
-        `${quote}`;
+        const usdt = await kesToUsdt(amountNum);
+        const usdtLine = usdt ? `~${usdt} USDT` : '';
+        const quote = getRandomQuote();
 
-      await sendTelegramAnimation(invoice.chatId, getRandomGif(), caption);
+        const caption = `*Payment received*\n` +
+          `KES ${amountNum.toLocaleString()}${usdtLine}\n` +
+          `Sender: ${phoneNumber}\n` +
+          `M-Pesa Receipt: ${transactionId}\n` +
+          `Ref: ${invoiceCode}\n\n` +
+          `Admin 60%: KES ${adminShare.toLocaleString()}\n` +
+          `Your 40%: KES ${userShare.toLocaleString()}\n\n` +
+          `${quote}`;
+
+        await sendTelegramAnimation(invoice.chatId, getRandomGif(), caption);
+      } else {
+        const caption = `*Client payment received*\n` +
+          `KES ${amountNum.toLocaleString()}\n` +
+          `Sender: ${phoneNumber}\n` +
+          `M-Pesa Receipt: ${transactionId}\n` +
+          `Ref: ${invoiceCode}\n` +
+          `Note: ${clientNote || 'No note'}\n\n` +
+          `Held for client — not split into savings.`;
+        if (invoice.chatId) {
+          await sendTelegramMessage(invoice.chatId, caption);
+        }
+      }
     } else {
       await updateInvoiceStatus(invoiceCode, "failed");
-      await sendTelegramMessage(invoice.chatId, `❌ Payment not completed. Ref: ${invoiceCode}`);
+      if (invoice.chatId) {
+        await sendTelegramMessage(invoice.chatId, `❌ Payment not completed. Ref: ${invoiceCode}`);
+      }
     }
 
     return res.status(200).json({ ok: true });
