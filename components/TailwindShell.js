@@ -6,7 +6,7 @@ import { Bell, BellOff } from 'lucide-react';
 const NAV_ITEMS = [
   { href: '/admin', label: 'Home' },
   { href: '/admin/report', label: 'Analytics' },
-  { href: '/admin/transfers', label: 'Transfers' },
+  { href: '/admin/send', label: 'Transfers' },
   { href: '/admin/profile', label: 'Profile' },
 ];
 
@@ -91,7 +91,7 @@ export default function TailwindShell({ title, children, armed, onToggleArm, toa
   );
 }
 
-export function GlassCard({ icon, iconBg, label, value, sub, subClass, className = '' }) {
+export function GlassCard({ icon, iconBg, label, value, sub, subClass, className = '', children }) {
   return (
     <div className={`relative bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl p-4 overflow-hidden ${className}`}>
       <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-white/[0.04] to-transparent pointer-events-none" />
@@ -103,6 +103,7 @@ export function GlassCard({ icon, iconBg, label, value, sub, subClass, className
       {label && <p className="relative text-xs text-slate-400 mb-1">{label}</p>}
       {value && <p className="relative text-lg font-bold text-white leading-tight">{value}</p>}
       {sub && <p className={`relative text-xs mt-1 ${subClass}`}>{sub}</p>}
+      {children && <div className="relative">{children}</div>}
     </div>
   );
 }
