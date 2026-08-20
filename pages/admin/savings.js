@@ -1,6 +1,7 @@
 // pages/admin/savings.js
 import { useEffect, useState } from 'react';
-import AdminLayout from '../../components/AdminLayout';
+import { PiggyBank, CircleDot } from 'lucide-react';
+import TailwindShell, { GlassCard } from '../../components/TailwindShell';
 import { isAuthenticated } from '../../lib/adminAuth';
 
 export async function getServerSideProps({ req }) {
@@ -17,11 +18,10 @@ function fmt(n) {
 export default function AdminSavings() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [approving, setApproving] = useState(false);
   const [goalInput, setGoalInput] = useState('');
   const [savingGoal, setSavingGoal] = useState(false);
-
-  const [loadError, setLoadError] = useState('');
 
   function load() {
     fetch('/api/admin/savings')
@@ -89,213 +89,104 @@ export default function AdminSavings() {
     load();
   }
 
-  const pulse = [{ name: 'KV', ok: true }, { name: 'Telegram', ok: true }, { name: 'Makamesco', ok: true }];
-
   return (
-    <AdminLayout title="Savings Split" pulse={pulse}>
-      <h1 className="pageTitle">Savings Split</h1>
-      <p className="pageSub">The 40% share accumulates here until you physically move it and approve.</p>
+    <TailwindShell title="Savings Split">
+      <p className="text-lg font-serif italic text-white">Savings Split</p>
+      <p className="text-sm text-slate-400 mb-5">
+        The 40% share accumulates here until you physically move it and approve.
+      </p>
 
       {loading ? (
-        <p className="loading">Loading...</p>
+        <p className="text-slate-400 text-sm">Loading...</p>
       ) : loadError ? (
-        <p className="loading" style={{ color: '#ff6b6b' }}>{loadError}</p>
+        <p className="text-red-400 text-sm">{loadError}</p>
       ) : (
         <>
-          <div className="cardGrid">
-            <div className="card">
-              <p className="cardLabel">Savings Balance</p>
-              <p className="cardValue teal">{fmt(data.savings)}</p>
-            </div>
-            <div className="card">
-              <p className="cardLabel">Pending (not yet moved)</p>
-              <p className="cardValue coral">{fmt(data.pending)}</p>
-            </div>
+          <div className="grid grid-cols-2 gap-3 mb-6">
+            <GlassCard
+              icon={<PiggyBank size={18} className="text-teal-400" />}
+              iconBg="bg-gradient-to-br from-teal-400/20 to-teal-600/10"
+              label="Savings Balance"
+              value={fmt(data.savings)}
+            />
+            <GlassCard
+              icon={<CircleDot size={18} className="text-orange-400" />}
+              iconBg="bg-gradient-to-br from-orange-400/20 to-red-500/10"
+              label="Pending"
+              value={fmt(data.pending)}
+              sub="Not yet moved"
+              subClass="text-orange-400"
+            />
           </div>
 
-          <div className="actionCard">
-            <p className="actionTitle" style={{ marginBottom: 10 }}>Savings Goal</p>
-            {data.savingsGoal ? (
-              <p className="actionSub" style={{ marginBottom: 12 }}>
-                Current goal: {fmt(data.savingsGoal)}
-              </p>
-            ) : (
-              <p className="actionSub" style={{ marginBottom: 12 }}>No goal set yet.</p>
-            )}
-            <form onSubmit={handleSetGoal} className="goalForm">
+          <GlassCard className="mb-4">
+            <p className="text-sm font-semibold text-white mb-3">Savings Goal</p>
+            <p className="text-xs text-slate-400 mb-3">
+              {data.savingsGoal ? `Current goal: ${fmt(data.savingsGoal)}` : 'No goal set yet.'}
+            </p>
+            <form onSubmit={handleSetGoal} className="flex gap-2">
               <input
                 type="number"
                 value={goalInput}
                 onChange={(e) => setGoalInput(e.target.value)}
-                className="goalInput"
+                className="flex-1 bg-black/30 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-teal-400"
                 placeholder="e.g. 5000"
                 required
               />
-              <button type="submit" disabled={savingGoal} className="goalBtn">
-                {savingGoal ? 'Saving...' : data.savingsGoal ? 'Update' : 'Set goal'}
+              <button
+                type="submit"
+                disabled={savingGoal}
+                className="bg-teal-400 text-[#0B0F1A] font-bold text-xs px-4 rounded-xl disabled:opacity-60"
+              >
+                {savingGoal ? '...' : data.savingsGoal ? 'Update' : 'Set'}
               </button>
             </form>
-          </div>
+          </GlassCard>
 
-          <div className="actionCard">
-            <div className="actionRow">
-              <div>
-                <p className="actionTitle">Auto-approve</p>
-                <p className="actionSub">
+          <GlassCard className="mb-6">
+            <div className="flex items-center justify-between">
+              <div className="pr-4">
+                <p className="text-sm font-semibold text-white mb-1">Auto-approve</p>
+                <p className="text-xs text-slate-400">
                   {data.autoApprove
-                    ? 'ON — deposits mark as moved instantly. Turn off unless money is really landing in a personal account.'
-                    : 'OFF — approve manually after physically sending money from your till.'}
+                    ? 'ON — deposits mark as moved instantly.'
+                    : 'OFF — approve manually after sending money.'}
                 </p>
               </div>
-              <button className={`toggle ${data.autoApprove ? 'on' : ''}`} onClick={toggleAutoApprove}>
-                <span className="toggleKnob" />
+              <button
+                onClick={toggleAutoApprove}
+                className={`w-11 h-6 rounded-full relative flex-shrink-0 ${data.autoApprove ? 'bg-teal-400' : 'bg-white/15'}`}
+              >
+                <span
+                  className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all ${data.autoApprove ? 'left-5' : 'left-0.5'}`}
+                />
               </button>
             </div>
-          </div>
+          </GlassCard>
 
           <button
-            className="approveBtn"
             onClick={handleApprove}
             disabled={approving || data.pending <= 0}
+            className="w-full rounded-full py-3.5 text-sm font-bold bg-gradient-to-r from-blue-500 to-yellow-400 text-[#0B0F1A] disabled:opacity-40 mb-6"
           >
-            {approving
-              ? 'Processing...'
-              : data.pending > 0
-              ? `Approve & clear ${fmt(data.pending)}`
-              : 'Nothing pending to approve'}
+            {approving ? 'Processing...' : data.pending > 0 ? `Approve & clear ${fmt(data.pending)}` : 'Nothing pending to approve'}
           </button>
 
-          <h2 className="sectionTitle">Pending split log</h2>
+          <p className="text-xs uppercase tracking-wide text-slate-500 mb-2">Pending split log</p>
           {data.log.length === 0 ? (
-            <p className="muted">Nothing pending right now.</p>
+            <p className="text-slate-400 text-sm">Nothing pending right now.</p>
           ) : (
-            <div className="table">
+            <div className="space-y-2">
               {data.log.map((l, i) => (
-                <div key={i} className="tableRow">
-                  <span className="desc">{l.accountReference || l.reference || 'Deposit'}</span>
-                  <span className="amount">{fmt(l.amount)}</span>
+                <div key={i} className="flex items-center justify-between bg-white/[0.03] border border-white/[0.06] rounded-2xl px-4 py-3">
+                  <span className="text-sm text-slate-100">{l.accountReference || l.reference || 'Deposit'}</span>
+                  <span className="text-sm font-bold text-teal-400">{fmt(l.amount)}</span>
                 </div>
               ))}
             </div>
           )}
         </>
       )}
-
-      <style jsx>{`
-        .pageTitle {
-          font-family: 'Playfair Display', serif;
-          font-style: italic;
-          font-size: 28px;
-          margin: 0 0 4px;
-          color: #fff;
-        }
-        .pageSub { color: #94a3b8; font-size: 14px; margin: 0 0 24px; }
-        .loading, .muted { color: #94a3b8; font-size: 14px; }
-        .cardGrid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-          gap: 16px;
-          margin-bottom: 20px;
-        }
-        .card {
-          background: #0a1628;
-          border: 1px solid rgba(255, 255, 255, 0.06);
-          border-radius: 12px;
-          padding: 20px;
-        }
-        .cardLabel { font-size: 12px; color: #94a3b8; margin: 0 0 8px; }
-        .cardValue { font-size: 24px; font-weight: 700; margin: 0; }
-        .cardValue.teal { color: #00ced1; }
-        .cardValue.coral { color: #ff6b6b; }
-        .actionCard {
-          background: #0a1628;
-          border: 1px solid rgba(255, 255, 255, 0.06);
-          border-radius: 12px;
-          padding: 18px 20px;
-          margin-bottom: 16px;
-        }
-        .actionRow { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
-        .actionTitle { font-size: 14px; font-weight: 600; margin: 0 0 4px; color: #e2e8f0; }
-        .actionSub { font-size: 12px; color: #94a3b8; margin: 0; }
-        .toggle {
-          width: 44px;
-          height: 24px;
-          border-radius: 12px;
-          background: rgba(255, 255, 255, 0.12);
-          border: none;
-          position: relative;
-          cursor: pointer;
-          flex-shrink: 0;
-        }
-        .toggle.on { background: #00ced1; }
-        .toggleKnob {
-          position: absolute;
-          top: 3px;
-          left: 3px;
-          width: 18px;
-          height: 18px;
-          border-radius: 50%;
-          background: #fff;
-          transition: left 0.15s;
-        }
-        .toggle.on .toggleKnob { left: 23px; }
-        .goalForm { display: flex; gap: 8px; }
-        .goalInput {
-          flex: 1;
-          background: #060b14;
-          border: 1px solid rgba(255, 255, 255, 0.12);
-          border-radius: 8px;
-          padding: 10px 12px;
-          color: #e2e8f0;
-          font-size: 14px;
-          font-family: inherit;
-        }
-        .goalInput:focus { outline: none; border-color: #00ced1; }
-        .goalBtn {
-          background: #00ced1;
-          color: #0a1628;
-          border: none;
-          border-radius: 8px;
-          padding: 10px 16px;
-          font-weight: 700;
-          font-size: 13px;
-          cursor: pointer;
-          font-family: inherit;
-          white-space: nowrap;
-        }
-        .goalBtn:disabled { opacity: 0.6; }
-        .approveBtn {
-          width: 100%;
-          background: #ffd700;
-          color: #0a1628;
-          border: none;
-          border-radius: 8px;
-          padding: 13px;
-          font-weight: 700;
-          font-size: 14px;
-          cursor: pointer;
-          font-family: inherit;
-          margin-bottom: 28px;
-        }
-        .approveBtn:disabled { opacity: 0.6; }
-        .sectionTitle {
-          font-size: 13px;
-          text-transform: uppercase;
-          letter-spacing: 0.6px;
-          color: #94a3b8;
-          margin: 0 0 12px;
-        }
-        .table { display: flex; flex-direction: column; gap: 6px; }
-        .tableRow {
-          display: flex;
-          justify-content: space-between;
-          background: #0a1628;
-          padding: 12px 16px;
-          border-radius: 8px;
-        }
-        .desc { font-size: 13px; color: #e2e8f0; }
-        .amount { font-weight: 700; color: #00ced1; font-size: 13px; }
-      `}</style>
-    </AdminLayout>
+    </TailwindShell>
   );
 }

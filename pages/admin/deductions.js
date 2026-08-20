@@ -1,6 +1,7 @@
 // pages/admin/deductions.js
 import { useEffect, useState } from 'react';
-import AdminLayout from '../../components/AdminLayout';
+import { MinusCircle } from 'lucide-react';
+import TailwindShell, { GlassCard } from '../../components/TailwindShell';
 import { isAuthenticated } from '../../lib/adminAuth';
 
 export async function getServerSideProps({ req }) {
@@ -66,128 +67,64 @@ export default function AdminDeductions() {
     }
   }
 
-  const pulse = [{ name: 'KV', ok: true }, { name: 'Telegram', ok: true }, { name: 'Makamesco', ok: true }];
-
   return (
-    <AdminLayout title="Deductions" pulse={pulse}>
-      <h1 className="pageTitle">Deductions</h1>
-      <p className="pageSub">Total deducted: <span className="totalHighlight">{fmt(total)}</span></p>
+    <TailwindShell title="Deductions">
+      <p className="text-lg font-serif italic text-white">Deductions</p>
+      <p className="text-sm text-slate-400 mb-1">Log money that physically left your till.</p>
+      <p className="text-sm text-red-400 font-semibold mb-5">Total deducted: {fmt(total)}</p>
 
-      <form onSubmit={handleSubmit} className="createCard">
-        <div className="row">
-          <div className="field">
-            <label className="label">Amount (KES)</label>
+      <GlassCard className="mb-6">
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <div>
+            <label className="text-xs text-slate-400 mb-1.5 block">Amount (KES)</label>
             <input
               type="number"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              className="input"
+              className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-teal-400"
               placeholder="200"
               required
             />
           </div>
-          <div className="field grow">
-            <label className="label">Reason</label>
+          <div>
+            <label className="text-xs text-slate-400 mb-1.5 block">Reason</label>
             <input
               type="text"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              className="input"
+              className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-teal-400"
               placeholder="What was this for?"
             />
           </div>
-        </div>
-        <button type="submit" disabled={saving} className="btn">
-          {saving ? 'Logging...' : 'Log deduction'}
-        </button>
-      </form>
+          <button
+            type="submit"
+            disabled={saving}
+            className="w-full flex items-center justify-center gap-1.5 rounded-full py-3.5 text-sm font-bold bg-gradient-to-r from-red-500 to-orange-400 text-[#0B0F1A] disabled:opacity-60"
+          >
+            <MinusCircle size={16} /> {saving ? 'Logging...' : 'Log deduction'}
+          </button>
+        </form>
+      </GlassCard>
 
-      <h2 className="sectionTitle">Recent deductions</h2>
+      <p className="text-xs uppercase tracking-wide text-slate-500 mb-2">Recent deductions</p>
 
       {loading ? (
-        <p className="loading">Loading...</p>
+        <p className="text-slate-400 text-sm">Loading...</p>
       ) : deductions.length === 0 ? (
-        <p className="muted">No deductions logged yet.</p>
+        <p className="text-slate-400 text-sm">No deductions logged yet.</p>
       ) : (
-        <div className="table">
+        <div className="space-y-2">
           {deductions.map((d, i) => (
-            <div key={i} className="tableRow">
-              <div className="rowMain">
-                <span className="reason">{d.reason}</span>
-                <span className="time">{timeAgo(d.at)}</span>
+            <div key={i} className="flex items-center justify-between bg-white/[0.03] border border-white/[0.06] rounded-2xl px-4 py-3">
+              <div>
+                <p className="text-sm text-slate-100">{d.reason}</p>
+                <p className="text-xs text-slate-500">{timeAgo(d.at)}</p>
               </div>
-              <span className="amount">−{fmt(d.amount)}</span>
+              <span className="text-sm font-bold text-red-400">−{fmt(d.amount)}</span>
             </div>
           ))}
         </div>
       )}
-
-      <style jsx>{`
-        .pageTitle {
-          font-family: 'Playfair Display', serif;
-          font-style: italic;
-          font-size: 28px;
-          margin: 0 0 4px;
-          color: #fff;
-        }
-        .pageSub { color: #94a3b8; font-size: 14px; margin: 0 0 24px; }
-        .totalHighlight { color: #ff6b6b; font-weight: 700; }
-        .createCard {
-          background: #0a1628;
-          border: 1px solid rgba(255, 255, 255, 0.06);
-          border-radius: 12px;
-          padding: 20px;
-          margin-bottom: 32px;
-        }
-        .row { display: flex; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
-        .field { display: flex; flex-direction: column; gap: 6px; }
-        .field.grow { flex: 1; min-width: 160px; }
-        .label { font-size: 12px; color: #94a3b8; }
-        .input {
-          background: #060b14;
-          border: 1px solid rgba(255, 255, 255, 0.12);
-          border-radius: 8px;
-          padding: 10px 12px;
-          color: #e2e8f0;
-          font-size: 14px;
-          font-family: inherit;
-          width: 100%;
-        }
-        .input:focus { outline: none; border-color: #00ced1; }
-        .btn {
-          background: #ffd700;
-          color: #0a1628;
-          border: none;
-          border-radius: 8px;
-          padding: 11px 20px;
-          font-weight: 700;
-          font-size: 14px;
-          cursor: pointer;
-          font-family: inherit;
-        }
-        .btn:disabled { opacity: 0.6; }
-        .sectionTitle {
-          font-size: 13px;
-          text-transform: uppercase;
-          letter-spacing: 0.6px;
-          color: #94a3b8;
-          margin: 0 0 12px;
-        }
-        .loading, .muted { color: #94a3b8; font-size: 14px; }
-        .table { display: flex; flex-direction: column; gap: 6px; }
-        .tableRow {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          background: #0a1628;
-          padding: 14px 16px;
-          border-radius: 8px;
-        }
-        .rowMain { display: flex; flex-direction: column; gap: 3px; }
-        .reason { font-size: 13px; color: #e2e8f0; }
-        .time { font-size: 11px; color: #94a3b8; }
-        .amount { font-weight: 700; color: #ff6b6b; font-size: 14px; }
-      `}</style>
-    </AdminLayout>
+    </TailwindShell>
   );
 }
