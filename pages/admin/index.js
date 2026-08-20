@@ -128,6 +128,17 @@ export default function AdminDashboard() {
         <p className="text-slate-400 text-sm">Loading...</p>
       ) : (
         <>
+          <div className="relative mb-4">
+            <div className="pointer-events-none absolute -inset-4 bg-gradient-to-br from-blue-500/10 via-transparent to-yellow-400/10 blur-2xl rounded-3xl" />
+            <div className="relative bg-white/5 backdrop-blur-xl border border-yellow-400/20 rounded-2xl p-4 flex items-center justify-between">
+              <div>
+                <p className="text-xs text-slate-400 mb-1">Total Processed (Lifetime)</p>
+                <p className="text-xl font-bold text-yellow-400">{fmt(summary.totalProcessed)}</p>
+                <p className="text-xs text-slate-500 mt-0.5">Income + client funds ever received — never decreases</p>
+              </div>
+            </div>
+          </div>
+
           <div className="relative mb-6">
             <div className="pointer-events-none absolute -inset-4 bg-gradient-to-br from-blue-500/10 via-transparent to-yellow-400/10 blur-2xl rounded-3xl" />
             <div className="relative grid grid-cols-2 gap-3">
@@ -136,7 +147,7 @@ export default function AdminDashboard() {
                 iconBg="bg-gradient-to-br from-yellow-400/20 to-yellow-600/10"
                 label="Total Collected"
                 value={fmt(summary.netWorth)}
-                sub="This week"
+                sub="Current standing"
                 subClass="text-yellow-400"
               />
               <GlassCard
