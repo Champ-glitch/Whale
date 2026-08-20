@@ -1,13 +1,37 @@
 // pages/pay/link.js
 import Head from 'next/head';
 import { useState, useRef } from 'react';
-import { ShieldCheck, Zap, CheckCircle2, Banknote, Phone, FileText } from 'lucide-react';
+import { ShieldCheck, Zap, CheckCircle2, XCircle, Banknote, Phone, FileText } from 'lucide-react';
 
 const VERIFY_MESSAGES = [
   "Waiting for you to enter your M-Pesa PIN...",
   "Still confirming with M-Pesa...",
   "Almost there...",
 ];
+
+function BrandHeader({ compact = false }) {
+  return (
+    <div className={`text-center ${compact ? 'mb-5' : 'mb-6'}`}>
+      <div className="relative w-16 h-16 mx-auto mb-3">
+        <div className="absolute inset-0 rounded-full bg-gradient-to-br from-yellow-400 to-teal-400 animate-pulse opacity-40 blur-md" />
+        <div className="relative w-16 h-16 rounded-full bg-gradient-to-br from-yellow-400 to-teal-400 p-[2px]">
+          <div className="w-full h-full rounded-full bg-[#0B0F1A] flex items-center justify-center text-2xl">
+            🐋
+          </div>
+        </div>
+      </div>
+      <p className="font-serif italic font-bold text-2xl">
+        <span className="text-white">Whale </span>
+        <span className="bg-gradient-to-r from-yellow-400 to-teal-400 bg-clip-text text-transparent">
+          Enterprise
+        </span>
+      </p>
+      <p className="text-xs text-teal-400 mt-1 flex items-center justify-center gap-1">
+        <ShieldCheck size={12} /> Merchant Verified
+      </p>
+    </div>
+  );
+}
 
 export default function PayLink() {
   const [stage, setStage] = useState('idle');
@@ -90,67 +114,85 @@ export default function PayLink() {
 
         <div className="relative w-full max-w-[400px]">
           {stage === 'success' ? (
-            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl shadow-2xl p-8 text-center">
-              <div className="w-14 h-14 rounded-full border-2 border-teal-400 flex items-center justify-center mx-auto mb-4">
-                <CheckCircle2 size={28} className="text-teal-400" />
+            <>
+              <BrandHeader compact />
+              <div className="relative bg-white/5 backdrop-blur-xl border border-teal-400/20 rounded-3xl shadow-2xl p-8 text-center overflow-hidden">
+                <div className="pointer-events-none absolute inset-x-0 -top-10 h-32 bg-teal-400/10 blur-2xl" />
+                <div className="relative">
+                  <div className="w-16 h-16 rounded-full border-2 border-teal-400 flex items-center justify-center mx-auto mb-4 shadow-[0_0_24px_rgba(45,212,191,0.4)]">
+                    <CheckCircle2 size={30} className="text-teal-400" />
+                  </div>
+                  <p className="text-white font-bold text-lg mb-3">Payment Confirmed</p>
+                  <p className="text-xs text-slate-400 mb-1">Amount</p>
+                  <p className="text-4xl font-bold text-yellow-400 mb-4">KES {Number(amount).toLocaleString()}</p>
+                  <p className="text-slate-400 text-sm">Paid to Whale Enterprise</p>
+                </div>
               </div>
-              <p className="text-white font-bold text-lg mb-1">Payment Confirmed</p>
-              <p className="text-yellow-400 text-2xl font-bold mb-1">KES {Number(amount).toLocaleString()}</p>
-              <p className="text-slate-400 text-xs">Paid to Whale Enterprise</p>
-            </div>
+            </>
           ) : stage === 'verifying' || stage === 'sending' ? (
-            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl shadow-2xl p-8 text-center">
-              <div className="text-4xl mb-4">📱</div>
-              <p className="text-white font-bold text-lg mb-1">
-                {stage === 'sending' ? 'Processing payment...' : 'Verifying payment'}
-              </p>
-              <p className="text-slate-400 text-sm mb-4">Check your phone and enter your M-Pesa PIN.</p>
-              {stage === 'verifying' && (
-                <>
-                  <p className="text-teal-400 text-xs mb-1">
-                    {VERIFY_MESSAGES[Math.min(Math.floor(elapsed / 6), VERIFY_MESSAGES.length - 1)]}
+            <>
+              <BrandHeader compact />
+              <div className="relative bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl shadow-2xl p-8 text-center overflow-hidden">
+                <div className="pointer-events-none absolute inset-x-0 -top-10 h-32 bg-gradient-to-r from-yellow-400/10 to-teal-400/10 blur-2xl" />
+                <div className="relative">
+                  <div className="relative w-16 h-16 mx-auto mb-4">
+                    <div className="absolute inset-0 rounded-full bg-gradient-to-br from-yellow-400 to-teal-400 animate-ping opacity-20" />
+                    <div className="relative w-16 h-16 rounded-full border-2 border-yellow-400/40 flex items-center justify-center text-2xl">
+                      📱
+                    </div>
+                  </div>
+                  <p className="text-white font-bold text-lg mb-1">
+                    {stage === 'sending' ? 'Processing payment...' : 'Verifying payment'}
                   </p>
-                  <p className="text-slate-500 text-xs">{elapsed}s elapsed</p>
-                </>
-              )}
-            </div>
-          ) : stage === 'failed' ? (
-            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl shadow-2xl p-8 text-center">
-              <div className="w-14 h-14 rounded-full border-2 border-red-400 flex items-center justify-center mx-auto mb-4 text-red-400 text-xl font-bold">
-                ✕
+                  <p className="text-slate-400 text-sm mb-4">Check your phone and enter your M-Pesa PIN.</p>
+
+                  {amount && (
+                    <>
+                      <p className="text-xs text-slate-400 mb-1">Amount</p>
+                      <p className="text-3xl font-bold text-yellow-400 mb-4">
+                        KES {Number(amount).toLocaleString()}
+                      </p>
+                    </>
+                  )}
+
+                  {stage === 'verifying' && (
+                    <>
+                      <p className="text-teal-400 text-xs mb-1">
+                        {VERIFY_MESSAGES[Math.min(Math.floor(elapsed / 6), VERIFY_MESSAGES.length - 1)]}
+                      </p>
+                      <p className="text-slate-500 text-xs">{elapsed}s elapsed</p>
+                    </>
+                  )}
+                </div>
               </div>
-              <p className="text-white font-bold text-lg mb-1">Payment not completed</p>
-              <p className="text-slate-400 text-sm mb-5">{errorMsg}</p>
-              <button
-                onClick={retry}
-                className="px-6 py-2.5 rounded-full text-sm font-bold bg-gradient-to-r from-yellow-400 to-teal-400 text-[#0B0F1A]"
-              >
-                Try again
-              </button>
-            </div>
+            </>
+          ) : stage === 'failed' ? (
+            <>
+              <BrandHeader compact />
+              <div className="relative bg-white/5 backdrop-blur-xl border border-red-400/20 rounded-3xl shadow-2xl p-8 text-center overflow-hidden">
+                <div className="pointer-events-none absolute inset-x-0 -top-10 h-32 bg-red-400/10 blur-2xl" />
+                <div className="relative">
+                  <div className="w-16 h-16 rounded-full border-2 border-red-400 flex items-center justify-center mx-auto mb-4">
+                    <XCircle size={30} className="text-red-400" />
+                  </div>
+                  <p className="text-white font-bold text-lg mb-1">Payment not completed</p>
+                  <p className="text-slate-400 text-sm mb-6">{errorMsg}</p>
+                  <button
+                    onClick={retry}
+                    className="px-6 py-2.5 rounded-full text-sm font-bold bg-gradient-to-r from-yellow-400 to-teal-400 text-[#0B0F1A]"
+                  >
+                    Try again
+                  </button>
+                </div>
+              </div>
+            </>
           ) : (
             <>
-              {/* Brand header */}
-              <div className="text-center mb-6">
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-yellow-400 to-teal-400 p-[2px] mx-auto mb-3">
-                  <div className="w-full h-full rounded-full bg-[#0B0F1A] flex items-center justify-center text-2xl">
-                    🐋
-                  </div>
-                </div>
-                <p className="font-serif italic font-bold text-2xl">
-                  <span className="text-white">Whale </span>
-                  <span className="bg-gradient-to-r from-yellow-400 to-teal-400 bg-clip-text text-transparent">
-                    Enterprise
-                  </span>
-                </p>
-                <p className="text-xs text-teal-400 mt-1 flex items-center justify-center gap-1">
-                  <ShieldCheck size={12} /> Merchant Verified
-                </p>
-                <p className="text-slate-400 text-xs mt-3 max-w-[280px] mx-auto leading-relaxed">
-                  Send a secure M-Pesa payment directly to Whale Enterprise. Enter your details
-                  below — you'll get a prompt on your phone to confirm.
-                </p>
-              </div>
+              <BrandHeader />
+              <p className="text-slate-400 text-xs text-center mb-6 max-w-[280px] mx-auto leading-relaxed -mt-3">
+                Send a secure M-Pesa payment directly to Whale Enterprise. Enter your details
+                below — you'll get a prompt on your phone to confirm.
+              </p>
 
               <form onSubmit={handleSubmit} className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl shadow-2xl p-6">
                 <label className="block text-xs text-slate-400 mb-1.5">Amount (KES)</label>
