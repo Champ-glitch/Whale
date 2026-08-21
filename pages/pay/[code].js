@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import Head from "next/head";
 import { getInvoice } from "../../lib/kv.js";
-import { Lock, Zap, CheckCircle2, WifiOff, Copy, Smartphone, Lightbulb } from "lucide-react";
+import { Lock, Zap, CheckCircle2, WifiOff, Copy, Smartphone, Lightbulb, ShieldCheck } from "lucide-react";
 
 export async function getServerSideProps({ params }) {
   const invoice = await getInvoice(params.code);
@@ -619,13 +619,17 @@ export default function PayPage({ invoice, code }) {
           ) : (
             <>
               <div className="brandHeader">
+                <div className="logoRing">
+                  <div className="logoRingInner">🐋</div>
+                </div>
                 <p className="brandName">
-                  whale enterprise
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" style={{ marginLeft: 8 }}>
-                    <path d="M9 12l2 2 4-4" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
+                  <span>whale </span>
+                  <span className="brandGradient">enterprise</span>
                 </p>
-                <p className="verifiedSub">Merchant Verified</p>
+                <p className="verifiedSub">
+                  <ShieldCheck size={13} style={{ verticalAlign: "-2px", marginRight: 4 }} />
+                  Merchant Verified
+                </p>
               </div>
 
               <div className="divider" />
@@ -682,15 +686,15 @@ export default function PayPage({ invoice, code }) {
 
                 <div className="featureGrid">
                   <div className="featureItem">
-                    <span className="featureIcon">🔒</span>
+                    <span className="featureIcon"><Lock size={18} /></span>
                     <span>Encrypted</span>
                   </div>
                   <div className="featureItem">
-                    <span className="featureIcon">⚡</span>
+                    <span className="featureIcon"><Zap size={18} /></span>
                     <span>Instant</span>
                   </div>
                   <div className="featureItem">
-                    <span className="featureIcon">✅</span>
+                    <span className="featureIcon"><CheckCircle2 size={18} /></span>
                     <span>No Hidden Fees</span>
                   </div>
                 </div>
@@ -747,6 +751,42 @@ export default function PayPage({ invoice, code }) {
           justify-content: center;
         }
         .verifiedSub { color: #cbd5e1; font-size: 14px; font-weight: 400; margin: 6px 0 0; letter-spacing: 0.3px; }
+        .logoRing {
+          position: relative;
+          width: 64px; height: 64px;
+          margin: 0 auto 14px;
+          border-radius: 50%;
+          background: linear-gradient(135deg, #FFD700, #00CED1);
+          padding: 2px;
+        }
+        .logoRing::before {
+          content: '';
+          position: absolute;
+          inset: -4px;
+          border-radius: 50%;
+          background: linear-gradient(135deg, #FFD700, #00CED1);
+          opacity: 0.35;
+          filter: blur(10px);
+          z-index: -1;
+          animation: logoPulse 2.4s ease-in-out infinite;
+        }
+        .logoRingInner {
+          width: 100%; height: 100%;
+          border-radius: 50%;
+          background: #060b14;
+          display: flex; align-items: center; justify-content: center;
+          font-size: 26px;
+        }
+        @keyframes logoPulse {
+          0%, 100% { opacity: 0.35; transform: scale(1); }
+          50% { opacity: 0.6; transform: scale(1.08); }
+        }
+        .brandGradient {
+          background: linear-gradient(90deg, #FFD700, #00CED1);
+          -webkit-background-clip: text;
+          background-clip: text;
+          color: transparent;
+        }
         .divider { width: 80%; height: 1px; background: rgba(255,255,255,0.15); margin: 26px auto; }
         .recipientLine { color: #94a3b8; font-size: 13px; text-align: center; margin: 0 0 16px; }
         .recipientLine strong { color: #e2e8f0; }
