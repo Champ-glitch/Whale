@@ -816,18 +816,18 @@ export default function PayPage({ invoice, code }) {
           width: 100%;
           margin: 26px auto 0;
           padding: 15px 30px;
-          background: linear-gradient(135deg, #00CED1, #06B6D4);
+          background: linear-gradient(135deg, #FFD700, #00CED1);
           border: none;
-          border-radius: 10px;
+          border-radius: 999px;
           color: #060b14;
           font-size: 14px;
           font-weight: 800;
           letter-spacing: 1px;
           cursor: pointer;
-          box-shadow: 0 8px 20px rgba(0,206,209,0.25);
+          box-shadow: 0 8px 24px rgba(255,215,0,0.2);
           transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.2s ease;
         }
-        .payNowBtn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 10px 26px rgba(0,206,209,0.35); }
+        .payNowBtn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 10px 26px rgba(255,215,0,0.3); }
         .payNowBtn:active:not(:disabled) { transform: translateY(0); }
         .payNowBtn:disabled { background: rgba(255,255,255,0.08); color: #475569; box-shadow: none; cursor: not-allowed; }
         .payNowBtn .arrow { display: inline-block; margin-left: 4px; }
@@ -1187,7 +1187,9 @@ function Shell({ children, title, description }) {
           width: 100%;
           max-width: 480px;
           min-height: 100vh;
-          background: #0d1826;
+          background: rgba(255,255,255,0.05);
+          backdrop-filter: blur(20px);
+          -webkit-backdrop-filter: blur(20px);
           border-radius: 0;
           padding: 40px 26px 32px;
           border: none;
@@ -1202,8 +1204,8 @@ function Shell({ children, title, description }) {
           .card {
             min-height: auto;
             margin: 40px 0;
-            border-radius: 20px;
-            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 24px;
+            border: 1px solid rgba(255,255,255,0.1);
             box-shadow: 0 20px 50px -15px rgba(0,0,0,0.6);
           }
         }
@@ -1213,8 +1215,9 @@ function Shell({ children, title, description }) {
           right: 0;
           width: 140px;
           height: 140px;
-          background: linear-gradient(135deg, #3B82F6, #06B6D4);
-          opacity: 0.85;
+          background: linear-gradient(135deg, #FFD700, #00CED1);
+          opacity: 0.15;
+          filter: blur(30px);
           clip-path: polygon(100% 0, 100% 100%, 20% 0);
           pointer-events: none;
         }
