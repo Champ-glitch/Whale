@@ -15,6 +15,7 @@ import {
   getRecentActivity,
   getTotalDeducted,
   getTodayStats,
+  listUnclassified,
 } from '../../../lib/kv';
 import { getClientFundsAllTime, getClientFundsHeld } from '../../../lib/clientFunds';
 
@@ -54,6 +55,7 @@ export default async function handler(req, res) {
     const totalDeducted = await getTotalDeducted();
     const clientFundsHeld = await getClientFundsHeld();
     const today = await getTodayStats();
+    const unclassifiedCount = (await listUnclassified(30)).length;
     const totalProcessed = stats.total + clientFundsAllTime;
 
     return res.status(200).json({
@@ -63,6 +65,7 @@ export default async function handler(req, res) {
       totalDeducted,
       clientFundsHeld,
       today,
+      unclassifiedCount,
       main,
       savings,
       netWorth,

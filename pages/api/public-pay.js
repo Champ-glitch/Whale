@@ -35,6 +35,7 @@ export default async function handler(req, res) {
       status: 'pending',
       createdAt: Date.now(),
       source: 'public',
+      purpose: 'unclassified',
     });
     await createSTKPush({ amount: Number(amount), phoneNumber: phone, reference: code });
     return res.status(200).json({ code });

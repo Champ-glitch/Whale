@@ -122,6 +122,15 @@ export default function AdminDashboard() {
         <p className="loading">Loading...</p>
       ) : (
         <>
+          {summary.unclassifiedCount > 0 && (
+            <a
+              href="/admin/unclassified"
+              className="block bg-purple-400/10 border border-purple-400/30 text-purple-300 text-xs font-semibold rounded-xl px-4 py-3 mb-4"
+            >
+              {summary.unclassifiedCount} payment{summary.unclassifiedCount !== 1 ? 's' : ''} need classification →
+            </a>
+          )}
+
           <div className="relative mb-6">
             <div className="pointer-events-none absolute -inset-4 bg-gradient-to-br from-yellow-400/10 via-transparent to-teal-400/10 blur-2xl rounded-3xl" />
             <div className="relative bg-white/5 backdrop-blur-xl border border-yellow-400/20 rounded-2xl px-4 py-4">

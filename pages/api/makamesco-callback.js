@@ -1,5 +1,5 @@
 // pages/api/makamesco-callback.js
-import { getInvoice, updateInvoiceStatus, getAdminPayment, recordSuccessStats, updateAdminPaymentStatus, logDirectPayment, recordTodayStats } from '../../lib/kv';
+import { getInvoice, updateInvoiceStatus, getAdminPayment, recordSuccessStats, updateAdminPaymentStatus, logDirectPayment, recordTodayStats, saveUnclassified } from '../../lib/kv';
 import { sendTelegramMessage, sendTelegramAnimation } from '../../lib/telegram';
 import { getRandomGif, getRandomQuote } from '../../lib/extras';
 import { kesToUsdt } from '../../lib/rates';
@@ -28,10 +28,10 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true });
     }
 
-    // Figure out this payment's purpose before crediting anything, since
-    // client funds must be held separately, never mixed into Main as income.
+    // Figure out this payment's purpose before crediting anything.
     let purpose = 'income';
     let clientNote = null;
+    let invoiceDescription = null;
 
     if (accountReference.startsWith('ADMIN-')) {
       const adminPayment = await getAdminPayment(accountReference);
@@ -44,13 +44,13 @@ export default async function handler(req, res) {
       if (invoice) {
         purpose = invoice.purpose || 'income';
         clientNote = invoice.clientNote || null;
+        invoiceDescription = invoice.description || null;
       }
     }
 
     if (success) {
       // Main balance grows on any successful payment - the money is
-      // physically in the till either way. No split, no savings - it just
-      // sits in Main until you manually deduct or disburse it.
+      // physically in the till either way.
       await recordSuccessStats(amountNum);
       await recordTodayStats(amountNum);
 
@@ -62,9 +62,16 @@ export default async function handler(req, res) {
       }
 
       if (purpose === 'client') {
-        // Client's money - held separately, tracked in Client Funds, not
-        // counted as your income.
         await addClientFundsHeld(amountNum, clientNote || `Ref: ${accountReference}`);
+      } else if (purpose === 'unclassified') {
+        // General public link - we don't know yet if this is income or
+        // client money. Already counted in Main; flag for merchant review.
+        await saveUnclassified(accountReference, {
+          amount: amountNum,
+          phoneNumber,
+          description: invoiceDescription || 'Payment via general link',
+          at: Date.now(),
+        });
       }
     }
 
@@ -117,7 +124,18 @@ export default async function handler(req, res) {
 
       await updateInvoiceStatus(invoiceCode, "success");
 
-      if (purpose !== 'client') {
+      if (purpose === 'client') {
+        const caption = `*Client payment received*\n` +
+          `KES ${amountNum.toLocaleString()}\n` +
+          `Sender: ${phoneNumber}\n` +
+          `M-Pesa Receipt: ${transactionId}\n` +
+          `Ref: ${invoiceCode}\n` +
+          `Note: ${clientNote || 'No note'}\n\n` +
+          `Held for client — not counted as your income.`;
+        if (invoice.chatId) {
+          await sendTelegramMessage(invoice.chatId, caption);
+        }
+      } else {
         const usdt = await kesToUsdt(amountNum);
         const usdtLine = usdt ? `~${usdt} USDT` : '';
         const quote = getRandomQuote();
@@ -131,17 +149,6 @@ export default async function handler(req, res) {
 
         if (invoice.chatId) {
           await sendTelegramAnimation(invoice.chatId, getRandomGif(), caption);
-        }
-      } else {
-        const caption = `*Client payment received*\n` +
-          `KES ${amountNum.toLocaleString()}\n` +
-          `Sender: ${phoneNumber}\n` +
-          `M-Pesa Receipt: ${transactionId}\n` +
-          `Ref: ${invoiceCode}\n` +
-          `Note: ${clientNote || 'No note'}\n\n` +
-          `Held for client — not counted as your income.`;
-        if (invoice.chatId) {
-          await sendTelegramMessage(invoice.chatId, caption);
         }
       }
     } else {
