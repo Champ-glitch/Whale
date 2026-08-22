@@ -195,7 +195,7 @@ function RequestTab() {
               required
             />
             <p className="text-xs text-purple-300/80 mt-2">
-              This won't be split into your savings — it'll show up in Client Funds instead.
+              This won't count as your income — it'll show up in Client Funds instead.
             </p>
           </div>
         )}
@@ -343,7 +343,7 @@ function InvoicesTab() {
                 required
               />
               <p className="text-xs text-purple-300/80 mt-2">
-                This won't be split into your savings — it'll show up in Client Funds instead.
+                This won't count as your income — it'll show up in Client Funds instead.
               </p>
             </div>
           )}
