@@ -1,12 +1,10 @@
 // pages/api/makamesco-callback.js
-import { getInvoice, updateInvoiceStatus, getAdminPayment } from '../../lib/kv';
+import { getInvoice, updateInvoiceStatus, getAdminPayment, recordSuccessStats, updateAdminPaymentStatus, logDirectPayment } from '../../lib/kv';
 import { sendTelegramMessage, sendTelegramAnimation } from '../../lib/telegram';
 import { getRandomGif, getRandomQuote } from '../../lib/extras';
 import { kesToUsdt } from '../../lib/rates';
 import { parseReference } from '../../lib/reference';
-import { recordSuccessStats, addPendingSplit, SPLIT_RATIO, getAutoApprove, setSavingsBalance, getSavingsBalance, updateAdminPaymentStatus, addWeeklySaved } from '../../lib/kv';
 import { addClientFundsHeld } from '../../lib/clientFunds';
-import { logDirectPayment } from '../../lib/kv';
 import { sendSMS } from '../../lib/sms';
 
 export default async function handler(req, res) {
@@ -31,7 +29,7 @@ export default async function handler(req, res) {
     }
 
     // Figure out this payment's purpose before crediting anything, since
-    // client funds must NEVER be split into savings.
+    // client funds must be held separately, never mixed into Main as income.
     let purpose = 'income';
     let clientNote = null;
 
@@ -42,26 +40,19 @@ export default async function handler(req, res) {
         clientNote = adminPayment.clientNote || null;
       }
     } else if (!parseReference(accountReference)) {
-      // Plain invoice code (web /link flow)
       const invoice = await getInvoice(accountReference);
       if (invoice) {
         purpose = invoice.purpose || 'income';
         clientNote = invoice.clientNote || null;
       }
     }
-    // Note: Telegram-initiated /pay (WHALE:: reference) has no stored record
-    // to tag, so it always defaults to 'income'. Use the admin panel's
-    // Request Payment or Invoices tab to tag client funds.
 
     if (success) {
-      // Main balance always grows on any successful payment - the money is
-      // physically in the till either way.
+      // Main balance grows on any successful payment - the money is
+      // physically in the till either way. No split, no savings - it just
+      // sits in Main until you manually deduct or disburse it.
       await recordSuccessStats(amountNum);
 
-      // Thank-you SMS to whoever paid. Fires once here regardless of which
-      // entry point the payment came through (Request Payment, Telegram
-      // /pay, or an invoice link) - sendSMS never throws, so this can never
-      // break the payment flow even if Nena is down.
       if (phoneNumber) {
         await sendSMS(
           phoneNumber,
@@ -70,19 +61,9 @@ export default async function handler(req, res) {
       }
 
       if (purpose === 'client') {
-        // Client's money - hold it separately, skip the 40% split entirely.
+        // Client's money - held separately, tracked in Client Funds, not
+        // counted as your income.
         await addClientFundsHeld(amountNum, clientNote || `Ref: ${accountReference}`);
-      } else {
-        // Your income - apply the normal 60/40 split.
-        const savingsShare = Math.round(amountNum * SPLIT_RATIO);
-        const autoApprove = await getAutoApprove();
-        if (autoApprove) {
-          const current = await getSavingsBalance();
-          await setSavingsBalance(current + savingsShare);
-          await addWeeklySaved(savingsShare);
-        } else {
-          await addPendingSplit(savingsShare, { accountReference });
-        }
       }
     }
 
@@ -102,9 +83,6 @@ export default async function handler(req, res) {
       if (success) {
         await logDirectPayment(amountNum, 'Telegram payment');
 
-        const adminShare = Math.round(amountNum * 0.6);
-        const userShare = amountNum - adminShare;
-
         const usdt = await kesToUsdt(amountNum);
         const usdtLine = usdt ? `~${usdt} USDT` : '';
         const quote = getRandomQuote();
@@ -113,8 +91,6 @@ export default async function handler(req, res) {
           `KES ${amountNum.toLocaleString()}${usdtLine}\n` +
           `Sender: ${phoneNumber}\n` +
           `M-Pesa Receipt: ${transactionId}\n\n` +
-          `Admin 60%: KES ${adminShare.toLocaleString()}\n` +
-          `Your 40%: KES ${userShare.toLocaleString()}\n\n` +
           `${quote}`;
 
         await sendTelegramAnimation(chatId, getRandomGif(), caption);
@@ -141,9 +117,6 @@ export default async function handler(req, res) {
       await updateInvoiceStatus(invoiceCode, "success");
 
       if (purpose !== 'client') {
-        const adminShare = Math.round(amountNum * 0.6);
-        const userShare = amountNum - adminShare;
-
         const usdt = await kesToUsdt(amountNum);
         const usdtLine = usdt ? `~${usdt} USDT` : '';
         const quote = getRandomQuote();
@@ -153,11 +126,11 @@ export default async function handler(req, res) {
           `Sender: ${phoneNumber}\n` +
           `M-Pesa Receipt: ${transactionId}\n` +
           `Ref: ${invoiceCode}\n\n` +
-          `Admin 60%: KES ${adminShare.toLocaleString()}\n` +
-          `Your 40%: KES ${userShare.toLocaleString()}\n\n` +
           `${quote}`;
 
-        await sendTelegramAnimation(invoice.chatId, getRandomGif(), caption);
+        if (invoice.chatId) {
+          await sendTelegramAnimation(invoice.chatId, getRandomGif(), caption);
+        }
       } else {
         const caption = `*Client payment received*\n` +
           `KES ${amountNum.toLocaleString()}\n` +
@@ -165,7 +138,7 @@ export default async function handler(req, res) {
           `M-Pesa Receipt: ${transactionId}\n` +
           `Ref: ${invoiceCode}\n` +
           `Note: ${clientNote || 'No note'}\n\n` +
-          `Held for client — not split into savings.`;
+          `Held for client — not counted as your income.`;
         if (invoice.chatId) {
           await sendTelegramMessage(invoice.chatId, caption);
         }

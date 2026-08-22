@@ -4,7 +4,6 @@ import { useRouter } from 'next/router';
 import {
   FileText,
   MinusCircle,
-  PiggyBank,
   Users,
   BarChart3,
   Settings as SettingsIcon,
@@ -22,9 +21,8 @@ export async function getServerSideProps({ req }) {
 }
 
 const MENU_ITEMS = [
-  { href: '/admin/transfers?tab=invoices', label: 'Invoices', icon: FileText, color: 'text-blue-400' },
+  { href: '/admin/invoices', label: 'Invoices', icon: FileText, color: 'text-blue-400' },
   { href: '/admin/deductions', label: 'Deductions', icon: MinusCircle, color: 'text-red-400' },
-  { href: '/admin/savings', label: 'Savings Split', icon: PiggyBank, color: 'text-teal-400' },
   { href: '/admin/client-funds', label: 'Client Funds', icon: Users, color: 'text-purple-300' },
   { href: '/admin/report', label: 'Weekly Report', icon: BarChart3, color: 'text-yellow-400' },
   { href: '/admin/settings', label: 'Settings', icon: SettingsIcon, color: 'text-slate-400' },
@@ -54,7 +52,7 @@ export default function AdminProfile() {
   return (
     <TailwindShell title="Profile">
       <div className="flex flex-col items-center mb-6">
-        <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-yellow-400 flex items-center justify-center text-[#0B0F1A] font-bold text-2xl mb-3">
+        <div className="w-16 h-16 rounded-full bg-gradient-to-br from-yellow-400 to-teal-400 flex items-center justify-center text-[#0B0F1A] font-bold text-2xl mb-3">
           W
         </div>
         <p className="text-white font-bold text-lg">Whale Enterprise</p>

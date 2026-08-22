@@ -3,8 +3,8 @@ import { useEffect, useState, useRef } from 'react';
 import {
   TrendingUp,
   Wallet,
-  PiggyBank,
-  ArrowLeftRight,
+  MinusCircle,
+  Users,
   Plus,
   FileText,
   ArrowDownCircle,
@@ -24,15 +24,30 @@ function fmt(n) {
   return `KES ${Number(n || 0).toLocaleString()}`;
 }
 
-function timeAgo(ts) {
-  if (!ts) return '';
-  const diff = Date.now() - ts;
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  return `${Math.floor(hrs / 24)}d ago`;
+function Sparkline({ trend }) {
+  const values = trend.map((t) => t.total).filter((v) => v !== null);
+  if (values.length < 2) {
+    return <div className="sparkEmpty">Not enough history yet</div>;
+  }
+  const max = Math.max(...values);
+  const min = Math.min(...values);
+  const range = max - min || 1;
+  const width = 280;
+  const height = 48;
+  const step = width / (trend.length - 1);
+
+  const points = trend.map((t, i) => {
+    const v = t.total === null ? min : t.total;
+    const x = i * step;
+    const y = height - ((v - min) / range) * height;
+    return `${x},${y}`;
+  });
+
+  return (
+    <svg width="100%" height="48" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" className="spark">
+      <polyline points={points.join(' ')} fill="none" stroke="#ffd700" strokeWidth="2" />
+    </svg>
+  );
 }
 
 const LAST_COUNT_KEY = 'whale_admin_last_count';
@@ -40,6 +55,7 @@ const ARMED_KEY = 'whale_admin_alerts_armed';
 
 export default function AdminDashboard() {
   const [summary, setSummary] = useState(null);
+  const [health, setHealth] = useState({ kv: true, telegram: true, makamesco: true });
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState(null);
   const [armed, setArmed] = useState(false);
@@ -96,18 +112,20 @@ export default function AdminDashboard() {
   }
 
   function load() {
-    fetch('/api/admin/summary')
-      .then((r) => r.json())
-      .then((s) => {
-        const stored = sessionStorage.getItem(LAST_COUNT_KEY);
-        const lastCount = stored !== null ? Number(stored) : null;
-        if (armed && lastCount !== null && s.stats.count > lastCount) {
-          notify(`New payment received — ${s.stats.count - lastCount} confirmed`);
-        }
-        sessionStorage.setItem(LAST_COUNT_KEY, String(s.stats.count));
-        setSummary(s);
-        setLoading(false);
-      });
+    Promise.all([
+      fetch('/api/admin/summary').then((r) => r.json()),
+      fetch('/api/admin/health').then((r) => r.json()),
+    ]).then(([s, h]) => {
+      const stored = sessionStorage.getItem(LAST_COUNT_KEY);
+      const lastCount = stored !== null ? Number(stored) : null;
+      if (armed && lastCount !== null && s.stats.count > lastCount) {
+        notify(`New payment received — ${s.stats.count - lastCount} confirmed`);
+      }
+      sessionStorage.setItem(LAST_COUNT_KEY, String(s.stats.count));
+      setSummary(s);
+      setHealth(h);
+      setLoading(false);
+    });
   }
 
   useEffect(() => {
@@ -116,75 +134,68 @@ export default function AdminDashboard() {
     return () => clearInterval(interval);
   }, [armed]);
 
-  const hour = new Date().getHours();
-  const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+  const pulse = [
+    { name: 'KV', ok: health.kv },
+    { name: 'Telegram', ok: health.telegram },
+    { name: 'Makamesco', ok: health.makamesco },
+  ];
 
   return (
-    <TailwindShell title="Dashboard" armed={armed} onToggleArm={unlockAudioAndArm} toast={toast}>
-      <p className="text-lg font-serif italic text-white">{greeting}, Whale</p>
-      <p className="text-sm text-slate-400 mb-6">Here's your financial overview</p>
+    <TailwindShell title="Dashboard" pulse={pulse}>
+      {toast && <div className="toast">🔔 {toast}</div>}
 
       {loading ? (
-        <p className="text-slate-400 text-sm">Loading...</p>
+        <p className="loading">Loading...</p>
       ) : (
         <>
-          <div className="relative mb-4">
-            <div className="pointer-events-none absolute -inset-4 bg-gradient-to-br from-blue-500/10 via-transparent to-yellow-400/10 blur-2xl rounded-3xl" />
-            <div className="relative bg-white/5 backdrop-blur-xl border border-yellow-400/20 rounded-2xl p-4 flex items-center justify-between">
-              <div>
-                <p className="text-xs text-slate-400 mb-1">Total Processed</p>
-                <p className="text-xl font-bold text-yellow-400">{fmt(summary.totalProcessed)}</p>
-              </div>
+          <div className="relative mb-1">
+            <div className="pointer-events-none absolute -inset-4 bg-gradient-to-br from-yellow-400/10 via-transparent to-teal-400/10 blur-2xl rounded-3xl" />
+            <div className="relative bg-white/5 backdrop-blur-xl border border-yellow-400/20 rounded-2xl p-4">
+              <p className="text-xs text-slate-400 mb-1">Total Ever Received — This Till</p>
+              <p className="text-2xl font-bold text-yellow-400">{fmt(summary.totalProcessed)}</p>
+              <Sparkline trend={summary.trend} />
             </div>
           </div>
+          <p className="text-xs text-slate-500 text-center mb-6">
+            Tracking this till only — not your full net worth.
+          </p>
 
-          <div className="relative mb-6">
-            <div className="pointer-events-none absolute -inset-4 bg-gradient-to-br from-blue-500/10 via-transparent to-yellow-400/10 blur-2xl rounded-3xl" />
-            <div className="relative grid grid-cols-2 gap-3">
-              <GlassCard
-                icon={<TrendingUp size={18} className="text-yellow-400" />}
-                iconBg="bg-gradient-to-br from-yellow-400/20 to-yellow-600/10"
-                label="Total Collected"
-                value={fmt(summary.netWorth)}
-                sub="Current standing"
-                subClass="text-yellow-400"
-              />
-              <GlassCard
-                icon={<Wallet size={18} className="text-blue-400" />}
-                iconBg="bg-gradient-to-br from-blue-400/20 to-blue-600/10"
-                label="Main Balance"
-                value={fmt(summary.main)}
-                sub="Available now"
-                subClass="text-blue-400"
-              />
-              <GlassCard
-                icon={<PiggyBank size={18} className="text-teal-400" />}
-                iconBg="bg-gradient-to-br from-teal-400/20 to-teal-600/10"
-                label="Savings"
-                value={fmt(summary.savings)}
-                sub={summary.goalProgress !== null ? `${summary.goalProgress}% of goal` : 'No goal set'}
-                subClass="text-yellow-400"
-              />
-              <GlassCard
-                icon={<ArrowLeftRight size={18} className="text-orange-400" />}
-                iconBg="bg-gradient-to-br from-orange-400/20 to-red-500/10"
-                label="Pending Split"
-                value={fmt(summary.pendingSplit)}
-                sub={summary.pendingSplit > 0 ? 'Awaiting approval' : 'Nothing pending'}
-                subClass="text-orange-400"
-              />
-            </div>
+          <div className="grid grid-cols-3 gap-3 mb-6">
+            <GlassCard
+              icon={<Wallet size={17} className="text-yellow-400" />}
+              iconBg="bg-gradient-to-br from-yellow-400/20 to-yellow-600/10"
+              label="Available Now"
+              value={fmt(summary.main)}
+              sub="Spendable"
+              subClass="text-yellow-400"
+            />
+            <GlassCard
+              icon={<MinusCircle size={17} className="text-red-400" />}
+              iconBg="bg-gradient-to-br from-red-400/20 to-red-600/10"
+              label="Spent So Far"
+              value={fmt(summary.totalDeducted)}
+              sub="Deductions"
+              subClass="text-red-400"
+            />
+            <GlassCard
+              icon={<Users size={17} className="text-purple-300" />}
+              iconBg="bg-gradient-to-br from-purple-400/20 to-purple-600/10"
+              label="Client Funds"
+              value={fmt(summary.clientFundsHeld)}
+              sub="Held for others"
+              subClass="text-purple-300"
+            />
           </div>
 
           <div className="flex gap-3 mb-8">
             <a
-              href="/admin/transfers"
-              className="flex-1 flex items-center justify-center gap-1.5 rounded-full py-3.5 text-sm font-bold bg-gradient-to-r from-blue-500 to-yellow-400 text-[#0B0F1A]"
+              href="/admin/send"
+              className="flex-1 flex items-center justify-center gap-1.5 rounded-full py-3.5 text-sm font-bold bg-gradient-to-r from-yellow-400 to-teal-400 text-[#0B0F1A]"
             >
               <Plus size={16} /> Request Payment
             </a>
             <a
-              href="/admin/transfers?tab=invoices"
+              href="/admin/invoices"
               className="flex-1 flex items-center justify-center gap-1.5 rounded-full py-3.5 text-sm font-bold border-2 border-yellow-400 text-yellow-400"
             >
               <FileText size={16} /> Create Invoice
@@ -193,15 +204,15 @@ export default function AdminDashboard() {
 
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-white font-bold text-base">Recent Transactions</h2>
-            <a href="/admin/transfers?tab=payments" className="text-yellow-400 text-xs font-medium flex items-center gap-1">
+            <a href="/admin/payments" className="text-yellow-400 text-xs font-medium flex items-center gap-1">
               See all <span>→</span>
             </a>
           </div>
 
           {summary.recentActivity.length === 0 ? (
-            <p className="text-slate-400 text-sm">No activity yet.</p>
+            <p className="text-slate-400 text-sm mb-6">No activity yet.</p>
           ) : (
-            <div className="flex flex-col gap-2 mb-4">
+            <div className="flex flex-col gap-2 mb-6">
               {summary.recentActivity.map((a, i) => (
                 <div
                   key={i}
@@ -218,9 +229,8 @@ export default function AdminDashboard() {
                     <p className="text-sm text-slate-100 truncate">
                       {a.label || (a.type === 'in' ? 'Payment received' : 'Deduction')}
                     </p>
-                    <p className="text-xs text-slate-500">{timeAgo(a.at)}</p>
                   </div>
-                  <span className={`text-sm font-bold ${a.type === 'in' ? 'text-green-400' : 'text-red-400'}`}>
+                  <span className={`text-sm font-bold ${a.type === 'in' ? 'text-teal-400' : 'text-red-400'}`}>
                     {a.type === 'in' ? '+' : '−'}{fmt(a.amount)}
                   </span>
                 </div>
@@ -228,11 +238,45 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          <p className="text-xs text-slate-500 text-center mt-4">
-            {summary.autoApprove ? 'Auto-approve is ON' : 'Auto-approve is OFF — savings clears via Approve Split'}
-          </p>
+          <div className="grid grid-cols-2 gap-3">
+            <GlassCard
+              icon={<TrendingUp size={17} className="text-teal-400" />}
+              iconBg="bg-gradient-to-br from-teal-400/20 to-teal-600/10"
+              label="All-Time Payments"
+              value={String(summary.stats.count)}
+              sub={`${summary.stats.streak} day streak`}
+              subClass="text-slate-400"
+            />
+            <GlassCard
+              label="Biggest Payment"
+              value={fmt(summary.biggestIn)}
+              sub="Single largest"
+              subClass="text-slate-400"
+            />
+          </div>
         </>
       )}
+
+      <style jsx>{`
+        .loading { color: #94a3b8; }
+        .toast {
+          position: fixed;
+          top: 70px;
+          right: 16px;
+          left: 16px;
+          max-width: 320px;
+          margin-left: auto;
+          background: #0a1628;
+          border: 1px solid #00ced1;
+          color: #e2e8f0;
+          padding: 12px 16px;
+          border-radius: 10px;
+          font-size: 13px;
+          z-index: 50;
+          box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+        }
+        .sparkEmpty { color: #94a3b8; font-size: 12px; height: 48px; display: flex; align-items: center; }
+      `}</style>
     </TailwindShell>
   );
 }
