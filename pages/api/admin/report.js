@@ -9,13 +9,14 @@ import {
   getStats,
   getBalance,
   getTotalDeducted,
+  getBiggestIn,
 } from '../../../lib/kv';
 
 export default async function handler(req, res) {
   if (!isAuthenticated(req)) return res.status(401).json({ error: 'Unauthorized' });
 
   try {
-    const [weeklySaved, topCategories, savingsGoal, savings, stats, main, totalDeducted] = await Promise.all([
+    const [weeklySaved, topCategories, savingsGoal, savings, stats, main, totalDeducted, biggestIn] = await Promise.all([
       getWeeklySaved(),
       getTopCategories(3),
       getSavingsGoal(),
@@ -23,6 +24,7 @@ export default async function handler(req, res) {
       getStats(),
       getBalance(),
       getTotalDeducted(),
+      getBiggestIn(),
     ]);
 
     const daysElapsed = getDaysElapsedInWeek();
@@ -40,6 +42,7 @@ export default async function handler(req, res) {
       stats,
       main,
       totalDeducted,
+      biggestIn,
     });
   } catch (err) {
     console.error('admin/report error:', err);
