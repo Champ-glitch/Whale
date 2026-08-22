@@ -6,6 +6,7 @@ import { kesToUsdt } from '../../lib/rates';
 import { parseReference } from '../../lib/reference';
 import { addClientFundsHeld } from '../../lib/clientFunds';
 import { sendSMS } from '../../lib/sms';
+import { sendPushToAllDevices } from '../../lib/webpush';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -60,6 +61,12 @@ export default async function handler(req, res) {
           `Thank you for trading with Whale Enterprise. We've received your payment of KES ${amountNum.toLocaleString()}. Ref: ${accountReference}.`
         );
       }
+
+      await sendPushToAllDevices({
+        title: 'Payment received',
+        body: `KES ${amountNum.toLocaleString()} from ${phoneNumber || 'a customer'}`,
+        url: '/admin',
+      });
 
       if (purpose === 'client') {
         await addClientFundsHeld(amountNum, clientNote || `Ref: ${accountReference}`);

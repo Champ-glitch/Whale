@@ -10,6 +10,7 @@ import {
   Settings as SettingsIcon,
   LogOut,
   ChevronRight,
+  Bell,
 } from 'lucide-react';
 import TailwindShell, { GlassCard } from '../../components/TailwindShell';
 import { isAuthenticated } from '../../lib/adminAuth';
@@ -30,15 +31,92 @@ const MENU_ITEMS = [
   { href: '/admin/settings', label: 'Settings', icon: SettingsIcon, color: 'text-slate-400' },
 ];
 
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  return Uint8Array.from([...rawData].map((c) => c.charCodeAt(0)));
+}
+
 export default function AdminProfile() {
   const router = useRouter();
   const [health, setHealth] = useState({ kv: true, telegram: true, makamesco: true });
+  const [pushStatus, setPushStatus] = useState('checking'); // checking | unsupported | denied | off | on
+  const [pushBusy, setPushBusy] = useState(false);
 
   useEffect(() => {
     fetch('/api/admin/health')
       .then((r) => r.json())
       .then(setHealth);
   }, []);
+
+  useEffect(() => {
+    checkPushStatus();
+  }, []);
+
+  async function checkPushStatus() {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      setPushStatus('unsupported');
+      return;
+    }
+    if (Notification.permission === 'denied') {
+      setPushStatus('denied');
+      return;
+    }
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.getSubscription();
+      setPushStatus(sub ? 'on' : 'off');
+    } catch {
+      setPushStatus('off');
+    }
+  }
+
+  async function enablePush() {
+    setPushBusy(true);
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        setPushStatus('denied');
+        return;
+      }
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY),
+      });
+      await fetch('/api/admin/push-subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subscription: sub }),
+      });
+      setPushStatus('on');
+    } catch (err) {
+      console.error('Push enable error:', err);
+      alert('Could not enable notifications: ' + err.message);
+    } finally {
+      setPushBusy(false);
+    }
+  }
+
+  async function disablePush() {
+    setPushBusy(true);
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.getSubscription();
+      if (sub) {
+        await fetch('/api/admin/push-subscribe', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ endpoint: sub.endpoint }),
+        });
+        await sub.unsubscribe();
+      }
+      setPushStatus('off');
+    } finally {
+      setPushBusy(false);
+    }
+  }
 
   async function handleLogout() {
     await fetch('/api/admin/logout', { method: 'POST' });
@@ -60,6 +138,38 @@ export default function AdminProfile() {
         <p className="text-white font-bold text-lg">Whale Enterprise</p>
         <p className="text-slate-400 text-xs">Admin Console</p>
       </div>
+
+      <p className="text-xs uppercase tracking-wide text-slate-500 mb-2">Notifications</p>
+      <GlassCard className="mb-6">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-yellow-400/20 to-teal-400/10 flex items-center justify-center flex-shrink-0">
+            <Bell size={18} className="text-yellow-400" />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm text-slate-100 font-medium">Payment alerts</p>
+            <p className="text-xs text-slate-500">
+              {pushStatus === 'unsupported' && "Not supported on this browser"}
+              {pushStatus === 'denied' && "Blocked — enable in browser settings"}
+              {pushStatus === 'off' && "Get notified even when the app is closed"}
+              {pushStatus === 'on' && "Enabled on this device"}
+              {pushStatus === 'checking' && "Checking..."}
+            </p>
+          </div>
+          {(pushStatus === 'off' || pushStatus === 'on') && (
+            <button
+              onClick={pushStatus === 'on' ? disablePush : enablePush}
+              disabled={pushBusy}
+              className={`px-3.5 py-2 rounded-full text-xs font-bold flex-shrink-0 ${
+                pushStatus === 'on'
+                  ? 'bg-red-500/10 text-red-400 border border-red-500/30'
+                  : 'bg-gradient-to-r from-yellow-400 to-teal-400 text-[#0B0F1A]'
+              } disabled:opacity-60`}
+            >
+              {pushBusy ? '...' : pushStatus === 'on' ? 'Disable' : 'Enable'}
+            </button>
+          )}
+        </div>
+      </GlassCard>
 
       <p className="text-xs uppercase tracking-wide text-slate-500 mb-2">System Status</p>
       <GlassCard className="mb-6">
