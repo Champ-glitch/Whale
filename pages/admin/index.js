@@ -24,32 +24,6 @@ function fmt(n) {
   return `KES ${Number(n || 0).toLocaleString()}`;
 }
 
-function Sparkline({ trend }) {
-  const values = trend.map((t) => t.total).filter((v) => v !== null);
-  if (values.length < 2) {
-    return <div className="sparkEmpty">Not enough history yet</div>;
-  }
-  const max = Math.max(...values);
-  const min = Math.min(...values);
-  const range = max - min || 1;
-  const width = 280;
-  const height = 48;
-  const step = width / (trend.length - 1);
-
-  const points = trend.map((t, i) => {
-    const v = t.total === null ? min : t.total;
-    const x = i * step;
-    const y = height - ((v - min) / range) * height;
-    return `${x},${y}`;
-  });
-
-  return (
-    <svg width="100%" height="48" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" className="spark">
-      <polyline points={points.join(' ')} fill="none" stroke="#ffd700" strokeWidth="2" />
-    </svg>
-  );
-}
-
 const LAST_COUNT_KEY = 'whale_admin_last_count';
 const ARMED_KEY = 'whale_admin_alerts_armed';
 
@@ -148,17 +122,19 @@ export default function AdminDashboard() {
         <p className="loading">Loading...</p>
       ) : (
         <>
-          <div className="relative mb-1">
+          <div className="relative mb-6">
             <div className="pointer-events-none absolute -inset-4 bg-gradient-to-br from-yellow-400/10 via-transparent to-teal-400/10 blur-2xl rounded-3xl" />
-            <div className="relative bg-white/5 backdrop-blur-xl border border-yellow-400/20 rounded-2xl p-4">
+            <div className="relative bg-white/5 backdrop-blur-xl border border-yellow-400/20 rounded-2xl px-4 py-4">
               <p className="text-xs text-slate-400 mb-1">Total Ever Received — This Till</p>
-              <p className="text-2xl font-bold text-yellow-400">{fmt(summary.totalProcessed)}</p>
-              <Sparkline trend={summary.trend} />
+              <p className="text-3xl font-bold text-white">{fmt(summary.totalProcessed)}</p>
+              <div className="h-px bg-white/10 my-3" />
+              <div className="text-xs text-slate-400">
+                Today: <span className="text-teal-400 font-semibold">{fmt(summary.today?.total)}</span>
+                {' '}·{' '}
+                Transactions: <span className="text-yellow-400 font-semibold">{summary.today?.count ?? 0}</span>
+              </div>
             </div>
           </div>
-          <p className="text-xs text-slate-500 text-center mb-6">
-            Tracking this till only — not your full net worth.
-          </p>
 
           <div className="grid grid-cols-3 gap-3 mb-6">
             <GlassCard
@@ -275,7 +251,6 @@ export default function AdminDashboard() {
           z-index: 50;
           box-shadow: 0 4px 16px rgba(0,0,0,0.4);
         }
-        .sparkEmpty { color: #94a3b8; font-size: 12px; height: 48px; display: flex; align-items: center; }
       `}</style>
     </TailwindShell>
   );

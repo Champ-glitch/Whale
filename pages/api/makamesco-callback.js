@@ -1,5 +1,5 @@
 // pages/api/makamesco-callback.js
-import { getInvoice, updateInvoiceStatus, getAdminPayment, recordSuccessStats, updateAdminPaymentStatus, logDirectPayment } from '../../lib/kv';
+import { getInvoice, updateInvoiceStatus, getAdminPayment, recordSuccessStats, updateAdminPaymentStatus, logDirectPayment, recordTodayStats } from '../../lib/kv';
 import { sendTelegramMessage, sendTelegramAnimation } from '../../lib/telegram';
 import { getRandomGif, getRandomQuote } from '../../lib/extras';
 import { kesToUsdt } from '../../lib/rates';
@@ -52,6 +52,7 @@ export default async function handler(req, res) {
       // physically in the till either way. No split, no savings - it just
       // sits in Main until you manually deduct or disburse it.
       await recordSuccessStats(amountNum);
+      await recordTodayStats(amountNum);
 
       if (phoneNumber) {
         await sendSMS(
